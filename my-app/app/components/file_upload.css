@@ -1,0 +1,63 @@
+
+/* Clean, minimalist blue upload button for the pptx label */
+.fileUpload {
+	margin-top: 1rem;
+}
+
+.hidden-file-input {
+	/* visually hide the native input while keeping it accessible */
+	position: absolute;
+	width: 1px;
+	height: 1px;
+	padding: 0;
+	margin: -1px;
+	overflow: hidden;
+	clip: rect(0, 0, 0, 0);
+	white-space: nowrap;
+	border: 0;
+}
+
+.pptx-label {
+	display: inline-flex;
+	align-items: center;
+	gap: 0.5rem;
+	padding: 0.55rem 0.95rem;
+	background: #0b63ff; /* primary blue */
+	color: #ffffff;
+	border-radius: 10px;
+	border: none;
+	cursor: pointer;
+	font-weight: 600;
+	font-size: 0.95rem;
+	line-height: 1;
+	box-shadow: 0 1px 0 rgba(0,0,0,0.04);
+	transition: transform 120ms ease, box-shadow 120ms ease, background 120ms ease;
+}
+
+.pptx-label:hover {
+	background: #0958e6;
+	transform: translateY(-2px);
+	box-shadow: 0 8px 20px rgba(11,99,255,0.12);
+}
+
+.pptx-label:active {
+	transform: translateY(0);
+	box-shadow: 0 2px 6px rgba(11,99,255,0.08);
+}
+
+/* Dark mode tweak: slightly lighter label border/background on dark backgrounds */
+@media (prefers-color-scheme: dark) {
+	.pptx-label {
+		box-shadow: 0 1px 0 rgba(0,0,0,0.12);
+	}
+}
+
+.upload-message {
+	color: #0b63ff;
+	font-weight: 600;
+}
+
+.upload-error {
+	color: #c92a2a;
+	font-weight: 600;
+}
