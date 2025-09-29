@@ -6,7 +6,7 @@
 
 generator client {
   provider = "prisma-client-js"
-  // output   = "../generated/prisma"
+  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -15,10 +15,11 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(dbgenerated("concat('usr_', replace(cast(gen_random_uuid() as text), '-', ''))")) @db.VarChar(255)
-  email     String   @unique
+  id        String   @id @default(cuid())
+  email     String   @unique          // make it required for upsert
   name      String?
-  avatar    String?
+  image     String?
+  avatar    String?                    // <- add this since your code queries it
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }

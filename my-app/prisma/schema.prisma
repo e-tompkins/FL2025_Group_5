@@ -6,10 +6,20 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../lib/generated/prisma"
+  binaryTargets = ["native"]
 }
 
 datasource db {
-  provider = "postgresql"
+  provider = "mysql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique          // make it required for upsert
+  name      String?
+  image     String?
+  avatar    String?                    // <- add this since your code queries it
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
