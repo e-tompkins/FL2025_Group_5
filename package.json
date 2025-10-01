@@ -16,6 +16,7 @@
   },
   "devDependencies": {
     "@prisma/client": "^6.16.2",
+    "@types/next-auth": "^3.13.0",
     "prisma": "^6.16.2"
   }
 }
