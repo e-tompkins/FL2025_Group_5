@@ -7,14 +7,19 @@ import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const allowedTypes = [
+    "application/pdf",
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+  ];  
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
-    if (selectedFile && selectedFile.type === "application/pdf") {
-      setFile(selectedFile);
-    } else {
-      alert("Please upload a PDF file.");
-    }
+    if (selectedFile && allowedTypes.includes(selectedFile.type)) {
+        setFile(selectedFile);
+      } else {
+        alert("Please upload a PDF or PowerPoint file.");
+      }
   };
 
   const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
@@ -88,7 +93,7 @@ export default function UploadPage() {
 
         <Button variant="outlined" component="label" sx={{ borderRadius: 2 }}>
           Choose File
-          <input type="file" accept="application/pdf" hidden onChange={handleFileChange} />
+          <input type="file" accept="allowedTypes" hidden onChange={handleFileChange} />
         </Button>
       </Paper>
 
