@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Box, Button, Typography, Paper } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import { signOut } from "next-auth/react";
@@ -15,6 +15,15 @@ export default function UploadPage() {
     "application/vnd.ms-powerpoint",
     "application/vnd.openxmlformats-officedocument.presentationml.presentation",
   ];
+
+  useEffect(() => {
+    var url = "";
+    if (file) {
+      url = URL.createObjectURL(file);
+    }
+    console.log(url);
+    console.log("file", file);
+  }, [file]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const selectedFile = e.target.files?.[0];
@@ -43,11 +52,19 @@ export default function UploadPage() {
     }
   };
 
-  const handleUpload = () => {
-    if (!file) {
-      alert("Please select a file first.");
-      return;
-    }
+  const handleUpload = async () => {
+    if (!file) return alert("Please select a file first.");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const res = await fetch("/api/process", {
+      method: "POST",
+      body: formData,
+    });
+
+    const data = await res.json();
+    console.log("Server file path:", data);
     alert(`✅ Uploaded: ${file.name}`);
   };
 
@@ -99,9 +116,7 @@ export default function UploadPage() {
             sx={{ fontSize: 50, mb: 2 }}
           />
           <Typography variant="body1" sx={{ mb: 1 }}>
-            {file
-              ? file.name
-              : "Drag & drop your file here or click to upload"}
+            {file ? file.name : "Drag & drop your file here or click to upload"}
           </Typography>
 
           <Button variant="outlined" component="label" sx={{ borderRadius: 2 }}>
