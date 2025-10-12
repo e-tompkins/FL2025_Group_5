@@ -5,7 +5,6 @@ import MuiAppBar from "@mui/material/AppBar";
 import Box from "@mui/material/Box";
 import Toolbar from "@mui/material/Toolbar";
 import IconButton from "@mui/material/IconButton";
-import Typography from "@mui/material/Typography";
 import Menu from "@mui/material/Menu";
 import MenuIcon from "@mui/icons-material/Menu";
 import Container from "@mui/material/Container";
@@ -16,13 +15,16 @@ import MenuItem from "@mui/material/MenuItem";
 import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 const pages = ["My Visuals", "Explore"];
 const settings = ["Settings", "Logout"];
-const LOGO_SRC = "/logo.png"; // update if you renamed the file
+const LOGO_SRC = "/logo.png"; // update if needed
 
 export default function AppBarComponent() {
+  const router = useRouter();
   const { data: session } = useSession();
+
   const avatarSrc = session?.user?.image ?? undefined;
   const displayName = session?.user?.name ?? "User";
   const initials = displayName
@@ -35,8 +37,11 @@ export default function AppBarComponent() {
   const [anchorElNav, setAnchorElNav] = React.useState<null | HTMLElement>(null);
   const [anchorElUser, setAnchorElUser] = React.useState<null | HTMLElement>(null);
 
-  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElNav(event.currentTarget);
-  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) => setAnchorElUser(event.currentTarget);
+  const handleOpenNavMenu = (event: React.MouseEvent<HTMLElement>) =>
+    setAnchorElNav(event.currentTarget);
+  const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) =>
+    setAnchorElUser(event.currentTarget);
+
   const handleCloseNavMenu = () => setAnchorElNav(null);
   const handleCloseUserMenu = () => setAnchorElUser(null);
 
@@ -46,46 +51,43 @@ export default function AppBarComponent() {
       sx={{
         bgcolor: "white",
         color: "text.primary",
-        borderBottom: (theme) => `1px solid ${theme.palette.divider}`,
+        borderBottom: (t) => `1px solid ${t.palette.divider}`,
         boxShadow: 0,
       }}
     >
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ minHeight: 64 }}>
-          {/* Desktop logo */}
-          <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", mr: 2 }}>
-            <Image
-              src={LOGO_SRC}
-              alt="VisuaLearn Logo"
-              width={200}
-              height={200}
-              priority
-              style={{ objectFit: "contain", borderRadius: 6 }}
-            />
+          {/* ✅ Desktop logo only (larger rectangular clickable area) */}
+          <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", mr: 3 }}>
+            <Box
+              onClick={() => router.push("/upload")}
+              sx={{
+                position: "relative",
+                width: 200, // ✅ increase size (try 100–150)
+                height: 100,
+                cursor: "pointer",
+                borderRadius: "8px",
+                overflow: "hidden",
+                transition: "transform 0.2s ease, opacity 0.2s ease",
+                "&:hover": { opacity: 0.8, transform: "scale(1.05)" },
+              }}
+            >
+              <Image
+                src={LOGO_SRC}
+                alt="VisuaLearn Logo"
+                fill
+                priority
+                style={{ objectFit: "contain", borderRadius: "8px" }}
+              />
+            </Box>
           </Box>
 
-          {/* (Optional) Brand text */}
-          <Typography
-            variant="h6"
-            noWrap
-            component="a"
-            href="/"
-            sx={{
-              mr: 2,
-              display: { xs: "none", md: "flex" },
-              fontWeight: 700,
-              letterSpacing: ".08rem",
-              color: "inherit",
-              textDecoration: "none",
-            }}
-          >
-          </Typography>
-
-          {/* Mobile: menu + small logo */}
+          {/* ✅ Mobile menu + logo */}
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" }, alignItems: "center" }}>
-            <IconButton size="large" aria-label="menu" onClick={handleOpenNavMenu} color="inherit">
+            <IconButton size="large" onClick={handleOpenNavMenu} color="inherit">
               <MenuIcon />
             </IconButton>
+
             <Menu
               anchorEl={anchorElNav}
               open={Boolean(anchorElNav)}
@@ -96,23 +98,36 @@ export default function AppBarComponent() {
             >
               {pages.map((page) => (
                 <MenuItem key={page} onClick={handleCloseNavMenu}>
-                  <Typography textAlign="center">{page}</Typography>
+                  <Box sx={{ fontSize: "0.95rem" }}>{page}</Box>
                 </MenuItem>
               ))}
             </Menu>
 
-            <Box sx={{ display: "flex", alignItems: "center", ml: 2 }}>
+            <Box
+              onClick={() => router.push("/upload")}
+              sx={{
+                position: "relative",
+                width: 100, // ✅ bigger mobile logo
+                height: 32,
+                cursor: "pointer",
+                borderRadius: "6px",
+                overflow: "hidden",
+                ml: 2,
+                transition: "transform 0.2s ease, opacity 0.2s ease",
+                "&:hover": { opacity: 0.8, transform: "scale(1.05)" },
+              }}
+            >
               <Image
                 src={LOGO_SRC}
                 alt="VisuaLearn Logo"
-                width={32}
-                height={32}
-                style={{ objectFit: "contain", borderRadius: 6 }}
+                fill
+                priority
+                style={{ objectFit: "cover", borderRadius: "6px" }}
               />
             </Box>
           </Box>
 
-          {/* Desktop navigation */}
+          {/* ✅ Desktop nav */}
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             {pages.map((page) => (
               <Button
@@ -125,6 +140,7 @@ export default function AppBarComponent() {
                   textTransform: "none",
                   fontWeight: 600,
                   letterSpacing: ".04rem",
+                  fontSize: "1.1rem",
                 }}
               >
                 {page}
@@ -132,7 +148,7 @@ export default function AppBarComponent() {
             ))}
           </Box>
 
-          {/* Avatar menu (uses Google photo) */}
+          {/* ✅ Avatar menu */}
           <Box sx={{ flexGrow: 0 }}>
             <Tooltip title="Open settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
@@ -141,6 +157,7 @@ export default function AppBarComponent() {
                 </Avatar>
               </IconButton>
             </Tooltip>
+
             <Menu
               sx={{ mt: "45px" }}
               anchorEl={anchorElUser}
@@ -159,15 +176,15 @@ export default function AppBarComponent() {
                     }
                   }}
                 >
-                  <Typography
-                    textAlign="center"
+                  <Box
                     sx={{
                       color: setting === "Logout" ? "error.main" : "inherit",
                       fontWeight: setting === "Logout" ? 600 : 400,
+                      textAlign: "center",
                     }}
                   >
                     {setting}
-                  </Typography>
+                  </Box>
                 </MenuItem>
               ))}
             </Menu>
