@@ -136,9 +136,9 @@ export default function AppBarComponent() {
                 sx={{
                   my: 2,
                   color: "inherit",
-                  fontFamily: "'Poppins', 'Montserrat', sans-serif",
+                  fontFamily: "sans-serif",
                   textTransform: "none",
-                  fontWeight: 600,
+                  fontWeight: 400,
                   letterSpacing: ".04rem",
                   fontSize: "1.1rem",
                 }}
