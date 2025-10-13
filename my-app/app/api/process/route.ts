@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import processUploadedFile from "./process";
 import extractWordsFromPDF from "./nlp"
+import imageCreate from "./image_create";
 
 export const POST = async (req: NextRequest) => {
   try {
@@ -28,15 +29,9 @@ export const POST = async (req: NextRequest) => {
 
     // Process the uploaded file (server-side) and return the processed result
     const processed = await processUploadedFile(buffer, filename);
-    console.log(processed);
     const words = extractWordsFromPDF(processed);
-    console.log(words);
-
-    // Log the full processed return value so you can inspect it during testing
-    
-
-
-    return NextResponse.json({ words });
+    const test_sentence = await imageCreate(words);
+    return NextResponse.json({ test_sentence });
   } catch (err) {
     console.error("Upload error:", err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
