@@ -52,9 +52,15 @@ export default function UploadPage() {
 
     const res = await fetch("/api/process", { method: "POST", body: formData });
     const data = await res.json();
-
-    const desc = data?.test_sentence ?? data?.description ?? JSON.stringify(data);
-    router.push(`/visuals?desc=${encodeURIComponent(desc)}`);
+    console.log("Chat description:", data);
+    // pass returned description and image URL to visuals page via query params
+    const description = data?.description ?? data?.test_sentence ?? "";
+    const imageUrl = data?.imageUrl ?? data?.image_url ?? "";
+    const params = new URLSearchParams();
+    if (description) params.set("desc", description);
+    if (imageUrl) params.set("img", imageUrl);
+    const query = params.toString();
+    router.push(`/visuals${query ? `?${query}` : ""}`);
   };
 
   return (
