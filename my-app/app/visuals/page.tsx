@@ -53,6 +53,16 @@ export default function UploadPage() {
         >
           Name of concept here
         </Typography>
+        <Typography
+          variant="body1"
+          color="text.secondary"
+          align="center"
+          mb={4}
+          px={2}
+          sx={{ maxWidth: 900 }}
+        >
+          {sampleDescription}
+        </Typography>
         {imageUrl ? (
           <img
             src={imageUrl}
@@ -64,15 +74,6 @@ export default function UploadPage() {
             No image provided.
           </Typography>
         )}
-        <Typography
-          variant="body1"
-          color="text.secondary"
-          align="center"
-          mb={4}
-          px={2}
-        >
-          {sampleDescription}
-        </Typography>
       </Box>
 
       {/* ✅ Main Upload Section */}
