@@ -51,7 +51,7 @@ export default function UploadPage() {
           mb={2}
           fontWeight={600}
         >
-          Name of concept here
+          Visualization
         </Typography>
         <Typography
           variant="body1"

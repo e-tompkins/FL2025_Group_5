@@ -11,7 +11,7 @@ export default async function imageCreate(words: string[]) {
   });
 
   const image = await client.images.generate({
-  model: "dall-e-3",
+  model: "dall-e-2",
   prompt: `Pretend you are an expert in visual image creation. Create a technical, educational visual for a college student learning a new concept that can be described using the following words: ${list}`,
   size: "1024x1024",
 });
