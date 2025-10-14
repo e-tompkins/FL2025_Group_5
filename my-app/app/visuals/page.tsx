@@ -16,6 +16,11 @@ export default function UploadPage() {
     searchParams?.get("desc") ??
     "A brief description of the concept goes here. This text provides context and information about the concept being presented.";
 
+  const imageUrl = searchParams?.get("img") ?? null;
+
+  console.log("TEST", sampleDescription, imageUrl);
+
+
   const allowedTypes = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -49,7 +54,17 @@ export default function UploadPage() {
         >
           Name of concept here
         </Typography>
-
+        {imageUrl ? (
+          <img
+            src={imageUrl}
+            alt="Generated visual"
+            style={{ maxWidth: "80%", borderRadius: 8 }}
+          />
+        ) : (
+          <Typography variant="body2" color="text.secondary">
+            No image provided.
+          </Typography>
+        )}
         <Typography
           variant="body1"
           color="text.secondary"

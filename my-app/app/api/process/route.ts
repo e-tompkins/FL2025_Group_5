@@ -30,8 +30,10 @@ export const POST = async (req: NextRequest) => {
     // Process the uploaded file (server-side) and return the processed result
     const processed = await processUploadedFile(buffer, filename);
     const words = extractWordsFromPDF(processed);
-    const test_sentence = await imageCreate(words);
-    return NextResponse.json({ test_sentence });
+    const result = await imageCreate(words);
+    console.log("ImageCreate result:", result);
+  // Return both description and image URL. Keep `test_sentence` for backward compatibility.
+    return NextResponse.json({ description: result.descText, imageUrl: result.imageUrl });
   } catch (err) {
     console.error("Upload error:", err);
     return NextResponse.json({ error: "Upload failed" }, { status: 500 });
