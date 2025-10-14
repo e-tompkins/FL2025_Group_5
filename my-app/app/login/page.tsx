@@ -1,20 +1,27 @@
 "use client";
 
 import { signIn } from "next-auth/react";
-import { Button, Card, CardContent, Typography, Container, Box } from "@mui/material";
+import {
+  Button,
+  Card,
+  CardContent,
+  Typography,
+  Container,
+  Box,
+} from "@mui/material";
 import GoogleIcon from "@mui/icons-material/Google";
 
 export default function LoginPage() {
   return (
     <Box
       sx={{
-        height: "100vh",              // full screen height
-        width: "100vw",               // full screen width
+        height: "100vh", // full screen height
+        width: "100vw", // full screen width
         display: "flex",
         flexDirection: "column",
         justifyContent: "center",
         alignItems: "center",
-        backgroundColor: "#f5f5f5",   // light gray background
+        backgroundColor: "#f5f5f5", // light gray background
       }}
     >
       <Box
@@ -28,7 +35,12 @@ export default function LoginPage() {
           maxWidth: 400,
         }}
       >
-        <Typography variant="h5" fontWeight={600} color= "text.secondary" gutterBottom>
+        <Typography
+          variant="h5"
+          fontWeight={600}
+          color="text.secondary"
+          gutterBottom
+        >
           Welcome
         </Typography>
         <Typography variant="body2" color="text.secondary" gutterBottom>
@@ -38,7 +50,11 @@ export default function LoginPage() {
         <Button
           variant="outlined"
           startIcon={<GoogleIcon />}
-          onClick={() => signIn("google", { callbackUrl: "/upload" })}
+          onClick={() =>
+            signIn("google", {
+              callbackUrl: "/upload",
+            })
+          }
           fullWidth
           sx={{ borderRadius: 2, textTransform: "none", py: 1.5, mt: 3 }}
         >
