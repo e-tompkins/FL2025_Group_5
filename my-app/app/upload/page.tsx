@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useRef, useState } from "react";
 import { Box, Button, Typography, Paper, Container, Stack } from "@mui/material";
 import CloudUploadIcon from "@mui/icons-material/CloudUpload";
 import AppBar from "../components/AppBar";
@@ -9,7 +9,9 @@ import { useRouter } from "next/navigation";
 export default function UploadPage() {
   const [file, setFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
+  const inputRef = useRef<HTMLInputElement | null>(null);
   const router = useRouter();
+
   const allowedTypes = [
     "application/pdf",
     "application/vnd.ms-powerpoint",
@@ -29,7 +31,6 @@ export default function UploadPage() {
     e.preventDefault();
     setDragActive(true);
   };
-
   const handleDragLeave = () => setDragActive(false);
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -49,125 +50,132 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/process", {
-      method: "POST",
-      body: formData,
-    });
-
+    const res = await fetch("/api/process", { method: "POST", body: formData });
     const data = await res.json();
-    console.log("Chat description:", data);
-    // pass returned description to visuals page via query param
+
     const desc = data?.test_sentence ?? data?.description ?? JSON.stringify(data);
     router.push(`/visuals?desc=${encodeURIComponent(desc)}`);
   };
 
   return (
     <>
-      {/* ✅ Top Navbar */}
       <AppBar />
 
+      {/* Single responsive section: no negative margins, no overlap */}
       <Box
         sx={{
-          height: "100vh",
-          width: "100vw",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
           bgcolor: "white",
-          marginTop: -30,
+          minHeight: "100dvh", // respects mobile browser UI
+          display: "flex",
+          alignItems: "flex-start",
         }}
       >
-        <Typography
-          variant="h2"
-          color="#3c82af"
-          align="center"
-          mt={4}
-          mb={2}
-          fontWeight={600}
-        >
-          VisuaLize your Learning
-        </Typography>
-
-        <Typography
-          variant="h5"
-          color="text.secondary"
-          align="center"
-          mb={4}
-          px={2}
-        >
-          Upload to transform your study materials into engaging visual aids
-          with VisuaLearn.
-        </Typography>
-      </Box>
-
-      {/* ✅ Main Upload Section */}
-      <Box
-        sx={{
-          height: "100vh",
-          width: "100vw",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          bgcolor: "white",
-          marginTop: -70,
-        }}
-      >
-        <Typography variant="h4" fontWeight={600} color="text.secondary" mb={4}>
-          Upload Your PDF or PPT
-        </Typography>
-
-        <Paper
-          elevation={dragActive ? 6 : 3}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
+        <Container
+          maxWidth="md"
           sx={{
-            width: "90%",
-            maxWidth: 500,
-            height: 220,
-            border: "2px dashed #aaa",
-            borderColor: dragActive ? "#1976d2" : "#ccc",
-            borderRadius: 4,
-            display: "flex",
-            flexDirection: "column",
-            justifyContent: "center",
-            alignItems: "center",
-            backgroundColor: dragActive ? "#e3f2fd" : "white",
-            transition: "all 0.2s ease",
-            textAlign: "center",
-            p: 3,
+            pt: { xs: 4, sm: 6, md: 8 }, // push content up a bit but stay responsive
+            pb: { xs: 6, sm: 8 },
           }}
         >
-          <CloudUploadIcon
-            color={dragActive ? "primary" : "action"}
-            sx={{ fontSize: 50, mb: 2 }}
-          />
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            {file ? file.name : "Drag & drop your file here or click to upload"}
-          </Typography>
+          <Stack spacing={{ xs: 3, sm: 4, md: 5 }} alignItems="center" textAlign="center">
+            {/* Hero */}
+            <Box>
+              <Typography
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  color: "#3c82af",
+                  // scales with viewport; clamps prevent extremes
+                  fontSize: {
+                    xs: "clamp(22px, 6vw, 34px)",
+                    sm: "clamp(26px, 5vw, 40px)",
+                    md: "48px",
+                  },
+                  mb: { xs: 1, md: 1.5 },
+                }}
+              >
+                VisuaLize your Learning
+              </Typography>
 
-          <Button variant="outlined" component="label" sx={{ borderRadius: 2 }}>
-            Choose File
-            <input
-              type="file"
-              accept={allowedTypes.join(",")}
-              hidden
-              onChange={handleFileChange}
-            />
-          </Button>
-        </Paper>
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.95rem", sm: "1.05rem" },
+                  maxWidth: 720,
+                  mx: "auto",
+                }}
+              >
+                Upload to transform your study materials into engaging visual aids with VisuaLearn.
+              </Typography>
+            </Box>
 
-        <Button
-          onClick={handleUpload}
-          variant="contained"
-          color="primary"
-          disabled={!file}
-          sx={{ mt: 4, px: 5, py: 1.2, borderRadius: 3 }}
-        >
-          Upload
-        </Button>
+            {/* Dropzone */}
+            <Paper
+              elevation={dragActive ? 6 : 3}
+              onClick={() => inputRef.current?.click()}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              sx={{
+                width: "100%",
+                maxWidth: 560,
+                height: { xs: 160, sm: 200, md: 220 }, // responsive height
+                border: "2px dashed",
+                borderColor: dragActive ? "primary.main" : "divider",
+                borderRadius: 3,
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "center",
+                alignItems: "center",
+                bgcolor: dragActive ? "action.hover" : "background.paper",
+                transition: "all 0.2s ease",
+                p: { xs: 2, sm: 3 },
+              }}
+            >
+              <CloudUploadIcon color={dragActive ? "primary" : "action"} sx={{ fontSize: { xs: 38, sm: 46 }, mb: 1.5 }} />
+
+              <Typography
+                variant="body1"
+                sx={{
+                  mb: 1.5,
+                  px: 1,
+                  overflowWrap: "anywhere", // long filenames won't overflow
+                  wordBreak: "break-word",
+                  maxWidth: "90%",
+                }}
+              >
+                {file ? file.name : "Drag & drop your file here or click to upload"}
+              </Typography>
+
+              <Button variant="outlined" component="label" sx={{ borderRadius: 2 }}>
+                Choose File
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept={allowedTypes.join(",")}
+                  hidden
+                  onChange={handleFileChange}
+                />
+              </Button>
+            </Paper>
+
+            {/* Action */}
+            <Button
+              onClick={handleUpload}
+              variant="contained"
+              disabled={!file}
+              sx={{
+                px: { xs: 4, sm: 5 },
+                py: { xs: 1, sm: 1.2 },
+                borderRadius: 3,
+                textTransform: "none",
+                fontWeight: 600,
+              }}
+            >
+              Upload
+            </Button>
+          </Stack>
+        </Container>
       </Box>
     </>
   );
