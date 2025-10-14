@@ -34,14 +34,13 @@ export default function UploadPage() {
 
       <Box
         sx={{
-          height: "100vh",
+          height: "90vh",
           width: "100vw",
           display: "flex",
           flexDirection: "column",
           justifyContent: "center",
           alignItems: "center",
           bgcolor: "white",
-          marginTop: -40,
         }}
       >
         <Typography
@@ -58,7 +57,7 @@ export default function UploadPage() {
           <img
             src={imageUrl}
             alt="Generated visual"
-            style={{ maxWidth: "80%", borderRadius: 8 }}
+            style={{ maxWidth: "30%", borderRadius: 8 }}
           />
         ) : (
           <Typography variant="body2" color="text.secondary">
