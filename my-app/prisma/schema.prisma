@@ -14,12 +14,11 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique          // make it required for upsert
-  name      String?
-  image     String?
-  avatar    String?                    // <- add this since your code queries it
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  email     String    @id @unique @db.VarChar(255)
+  name      String    @db.VarChar(255)
+  image     String?   @db.VarChar(2048)
+  createdAt DateTime  @default(now()) @db.Timestamp(0)
+  updatedAt DateTime  @updatedAt @db.Timestamp(0)
 }

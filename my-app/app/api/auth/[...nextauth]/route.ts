@@ -40,7 +40,7 @@ const authOption: NextAuthOptions = {
       if (profile) {
         const dbUser = await prisma.user.findUnique({
           where: { email: profile.email as string },
-          select: { id: true, image: true },
+          select: { image: true },
         });
         if (!dbUser) throw new Error("No user found");
         token.id = dbUser.id;
