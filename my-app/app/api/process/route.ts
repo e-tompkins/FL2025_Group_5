@@ -1,64 +1,62 @@
-import { NextAuthOptions } from "next-auth";
-import NextAuth from "next-auth/next";
-import GoogleProvider from "next-auth/providers/google";
+import { NextRequest, NextResponse } from "next/server";
+import fs from "fs";
+import path from "path";
+import processUploadedFile from "./process";
+import extractWordsFromPDF from "./nlp"
+import imageCreate from "./image_create";
+import { getServerSession } from "next-auth";
+import { authOption } from "@/app/api/auth/[...nextauth]/route"
 import { prisma } from "@/lib/prisma";
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
+export const POST = async (req: NextRequest) => {
+  const session = await getServerSession(authOption);
+  if (!session) {
+    return new Response("Not authenticated", { status: 401 });
+  }
+  const user = session.user
+  const email = session.user?.email
+  try {
+    const formData = await req.formData();
+    const file = formData.get("file") as File | null;
 
-export const authOptions: NextAuthOptions = {
-  session: { strategy: "jwt" },
-  providers: [
-    GoogleProvider({
-      clientId: GOOGLE_CLIENT_ID,
-      clientSecret: GOOGLE_CLIENT_SECRET,
-    }),
-  ],
-  callbacks: {
-    // Ensure user exists (don’t drop image here unless your schema has it)
-    async signIn({ profile }) {
-      if (!profile?.email) return false;
+    if (!file) {
+      return NextResponse.json({ error: "No file provided" }, { status: 400 });
+    }
 
-      await prisma.user.upsert({
-        where: { email: profile.email },
-        create: {
-          email: profile.email,
-          name: profile.name,
-          // If your Prisma schema includes an `image` field and you want to store it:
-          // image: (profile as any).picture ?? null,
-        },
-        update: {
-          name: profile.name,
-          // image: (profile as any).picture ?? null,
-        },
-      });
-      return true;
+    // Ensure upload directory exists
+    const uploadDir = path.join(process.cwd(), "uploads");
+    await fs.promises.mkdir(uploadDir, { recursive: true });
+
+    // Normalize filename and write file
+    const safeName = path.basename(file.name || `upload-${Date.now()}`);
+    const filename = `${Date.now()}-${safeName}`;
+    const filePath = path.join(uploadDir, filename);
+
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    await fs.promises.writeFile(filePath, buffer);
+
+    // Process the uploaded file (server-side) and return the processed result
+    const processed = await processUploadedFile(buffer, filename);
+    const words = extractWordsFromPDF(processed);
+    const result = await imageCreate(words);
+  // Return both description and image URL. Keep `test_sentence` for backward compatibility.
+  try {
+  await prisma.image.create({
+    data: {
+      words,
+      imageUrl: result.imageUrl,
+      user: {
+        connect: { email },
+      },
     },
-
-    // Put the Google avatar onto the JWT
-    async jwt({ token, profile }) {
-      if (profile && (profile as any).picture) {
-        token.picture = (profile as any).picture; // e.g., https://lh3.googleusercontent.com/...
-      }
-      // If you want the DB to be authoritative for id/picture, you can also fetch:
-      // if (token.email) {
-      //   const dbUser = await prisma.user.findUnique({ where: { email: token.email as string }, select: { id: true, image: true }});
-      //   if (dbUser?.id) token.id = dbUser.id;
-      //   if (dbUser?.image) token.picture = dbUser.image;
-      // }
-      return token;
-    },
-
-    // Expose the avatar on the client session
-    async session({ session, token }) {
-      if (session.user) {
-        if (token?.id) (session.user as any).id = token.id;
-        if (token?.picture) session.user.image = token.picture as string;
-      }
-      return session;
-    },
-  },
+  });
+} catch (error) {
+  throw error;
+}
+    return NextResponse.json({ description: result.descText, imageUrl: result.imageUrl });
+  } catch (err) {
+    console.error("Upload error:", err);
+    return NextResponse.json({ error: "Upload failed" }, { status: 500 });
+  }
 };
-
-const handler = NextAuth(authOptions);
-export { handler as GET, handler as POST };

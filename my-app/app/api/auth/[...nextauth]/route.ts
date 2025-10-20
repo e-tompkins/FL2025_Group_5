@@ -7,7 +7,7 @@ import { prisma } from "@/lib/prisma";
 const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
 
-const authOption: NextAuthOptions = {
+export const authOption: NextAuthOptions = {
   session: { strategy: "jwt" },
   providers: [
     GoogleProvider({
@@ -55,6 +55,7 @@ const authOption: NextAuthOptions = {
       if (session.user) {
         (session.user as any).id = (token as any).id;
         session.user.image = (token as any).picture ?? session.user.image ?? null;
+        session.user.email = token.email;
       }
       return session;
     },
@@ -62,4 +63,5 @@ const authOption: NextAuthOptions = {
 };
 
 const handler = NextAuth(authOption);
+export default NextAuth(authOption);
 export { handler as GET, handler as POST };
