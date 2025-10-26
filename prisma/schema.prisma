@@ -5,8 +5,7 @@
 // Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
 
 generator client {
-  provider = "prisma-client-js"
-  binaryTargets = ["native"]
+  provider      = "prisma-client-js"
 }
 
 datasource db {
@@ -16,10 +15,27 @@ datasource db {
 
 model User {
   id        String   @id @default(cuid())
-  email     String   @unique          // make it required for upsert
+  email     String   @unique
   name      String?
-  image     String?
-  avatar    String?                    // <- add this since your code queries it
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt    // <- this matches your DB's NOT NULL updatedAt
+  visuals   Visual[]
+}
+
+model Visual {
+  id        String   @id @default(cuid())
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+
+  topic     String
+  html      String  @db.MediumText // big enough for markup
+  css       String? @db.MediumText // optional
+  js        String  @db.LongText // JS can be longer
+  modelUsed String?
+  rationale String? @db.MediumText
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([userId, topic]) // cache key per user/topic
 }

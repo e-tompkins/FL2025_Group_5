@@ -46,22 +46,28 @@ export default function UploadPage() {
 
   const handleUpload = async () => {
     if (!file) return alert("Please select a file first.");
-
+  
     const formData = new FormData();
     formData.append("file", file);
-
-    const res = await fetch("/api/process", { method: "POST", body: formData });
+  
+    // ⬇️ call the topics endpoint (ensure your file is at /app/api/process/topics/route.ts)
+    const res = await fetch("/api/process/topics", { method: "POST", body: formData });
     const data = await res.json();
-    console.log("Chat description:", data);
-    // pass returned description and image URL to visuals page via query params
-    const description = data?.description ?? data?.test_sentence ?? "";
-    const imageUrl = data?.imageUrl ?? data?.image_url ?? "";
-    const params = new URLSearchParams();
-    if (description) params.set("desc", description);
-    if (imageUrl) params.set("img", imageUrl);
-    const query = params.toString();
-    router.push(`/visuals${query ? `?${query}` : ""}`);
+  
+    if (!res.ok) {
+      console.error("topics API error:", data);
+      alert(data?.error || "Processing failed");
+      return;
+    }
+  
+    const topics: string[] = Array.isArray(data?.topics) ? data.topics : [];
+    console.log("DEBUG topics:", topics);
+  
+    // ⬇️ encode topics for /topics page
+    const encoded = encodeURIComponent(btoa(JSON.stringify(topics)));
+    router.push(`/topics?data=${encoded}`);
   };
+  
 
   return (
     <>

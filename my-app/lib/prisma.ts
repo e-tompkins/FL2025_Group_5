@@ -1,8 +1,18 @@
-import { PrismaClient } from '@prisma/client'
+import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma?: PrismaClient }
+const makeClient = () =>
+  new PrismaClient({
+    log: ["warn", "error"], // add "query" if you want verbose SQL logs
+  });
 
-export const prisma =
-  globalForPrisma.prisma ?? new PrismaClient()
+declare global {
+  // allow global var in dev to avoid new connections on HMR
+  // eslint-disable-next-line no-var
+  var prisma: PrismaClient | undefined;
+}
 
-if (process.env.NODE_ENV !== 'production') globalForPrisma.prisma = prisma
+export const prisma = global.prisma ?? makeClient();
+
+if (process.env.NODE_ENV !== "production") {
+  global.prisma = prisma;
+}

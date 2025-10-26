@@ -6,7 +6,6 @@
 
 generator client {
   provider      = "prisma-client-js"
-  binaryTargets = ["native"]
 }
 
 datasource db {
@@ -15,19 +14,30 @@ datasource db {
 }
 
 model User {
-  email     String   @id @db.VarChar(255)
-  name      String   @db.VarChar(255)
-  image     String?  @db.VarChar(2048)
-  createdAt DateTime @default(now()) @db.Timestamp(0)
-  updatedAt DateTime @updatedAt @db.Timestamp(0)
-  images Image[]
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt    // <- this matches your DB's NOT NULL updatedAt
+  visuals   Visual[]
 }
 
-model Image {
-  imageId  Int    @id @default(autoincrement())
-  email    String @db.VarChar(255)
-  words    Json
-  imageUrl String @db.VarChar(2048)
-  user     User   @relation(fields: [email], references: [email])
-  @@index([email])
+model Visual {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  topic     String
+  html      String   @db.MediumText  // big enough for markup
+  css       String?  @db.MediumText  // optional
+  js        String   @db.LongText    // JS can be longer
+  modelUsed String?
+  rationale String? @db.MediumText
+
+
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@unique([userId, topic])          // cache key per user/topic
 }
+

@@ -1,94 +1,277 @@
+// app/visuals/page.tsx
 "use client";
 
-import { useState } from "react";
-import { Box, Button, Typography, Paper } from "@mui/material";
-import CloudUploadIcon from "@mui/icons-material/CloudUpload";
-import AppBar from "../components/AppBar";
-import { useRouter } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
+import {
+  Box,
+  Container,
+  Typography,
+  Paper,
+  CircularProgress,
+  Stack,
+  Button,
+  Chip,
+} from "@mui/material";
+import AppBar from "../components/AppBar";
+import VisualRunner from "../components/VisualRunner";
 
-export default function UploadPage() {
-  const [file, setFile] = useState<File | null>(null);
-  const [dragActive, setDragActive] = useState(false);
-  const router = useRouter();
-  const searchParams = useSearchParams();
-  const sampleDescription =
-    searchParams?.get("desc") ??
-    "A brief description of the concept goes here. This text provides context and information about the concept being presented.";
+type CodeBundle = {
+  topic: string;
+  html: string;
+  css?: string;
+  js: string;
+  cached?: boolean;
+  rationale?: string;
+};
 
-  const imageUrl = searchParams?.get("img") ?? null;
+export default function VisualsPage() {
+  const sp = useSearchParams();
 
-  console.log("TEST", sampleDescription, imageUrl);
+  // decode ?topics= (base64 JSON array) passed from /topics
+  const topics = useMemo(() => {
+    try {
+      const raw = sp.get("topics");
+      if (!raw) return [];
+      const arr = JSON.parse(atob(decodeURIComponent(raw)));
+      return Array.isArray(arr) ? arr.slice(0, 10) : [];
+    } catch {
+      return [];
+    }
+  }, [sp]);
+
+  const [bundles, setBundles] = useState<CodeBundle[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const onlyTopic = topics.length === 1 ? topics[0] : null;
 
 
-  const allowedTypes = [
-    "application/pdf",
-    "application/vnd.ms-powerpoint",
-    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  ];
+  // fetch anime.js code for each topic
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (!topics.length) {
+          setBundles([]);
+          return;
+        }
+        const results = await Promise.all(
+          topics.map(async (topic: string) => {
+            const res = await fetch("/api/visuals", {
+              method: "POST",
+              headers: { "content-type": "application/json" },
+              body: JSON.stringify({ topic }),
+            });
+            const data = await res.json();
+            if (!res.ok) throw new Error(data?.error || "API error");
+            return {
+              topic,
+              html: data.html,
+              css: data.css,
+              js: data.js,
+              cached: data.cached,
+              rationale: data.rationale,
+            } as CodeBundle;
+          })
+        );
+        if (!cancelled) setBundles(results);
+      } catch (e: any) {
+        if (!cancelled) setError(e.message || "Failed to generate visuals");
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [topics]);
+
+  const regenerate = async (topic: string) => {
+    try {
+      const res = await fetch("/api/visuals", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic, forceRegenerate: true }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error || "API error");
+      setBundles((prev) =>
+        (prev || []).map((b) =>
+          b.topic === topic
+            ? {
+                topic,
+                html: data.html,
+                css: data.css,
+                js: data.js,
+                cached: false,
+                rationale: data.rationale,
+              }
+            : b
+        )
+      );
+    } catch (e: any) {
+      alert(e.message || "Failed to regenerate");
+    }
+  };
+
+  // Loading state
+  if (bundles === null) {
+    return (
+      <>
+        <AppBar />
+        <Box
+          sx={{
+            bgcolor: "white",
+            minHeight: "100dvh",
+            display: "flex",
+            alignItems: "center",
+          }}
+        >
+          <Container
+            maxWidth="md"
+            sx={{ display: "flex", justifyContent: "center", py: 8 }}
+          >
+            <CircularProgress />
+          </Container>
+        </Box>
+      </>
+    );
+  }
+
+  // Error state
+  if (error) {
+    return (
+      <>
+        <AppBar />
+        <Box sx={{ bgcolor: "white", minHeight: "100dvh" }}>
+          <Container maxWidth="md" sx={{ pt: { xs: 4, sm: 6, md: 8 }, pb: 6 }}>
+            <Typography color="error">{error}</Typography>
+          </Container>
+        </Box>
+      </>
+    );
+  }
 
   return (
     <>
-      {/* ✅ Top Navbar */}
       <AppBar />
 
+      {/* Match the Upload page hero & spacing */}
       <Box
         sx={{
-          height: "90vh",
-          width: "100vw",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
           bgcolor: "white",
+          minHeight: "100dvh",
+          display: "flex",
+          alignItems: "flex-start",
         }}
       >
-        <Typography
-          variant="h4"
-          color="#3c82af"
-          align="center"
-          mt={4}
-          mb={2}
-          fontWeight={600}
+        <Container
+          maxWidth="md"
+          sx={{
+            pt: { xs: 4, sm: 6, md: 8 },
+            pb: { xs: 6, sm: 8 },
+          }}
         >
-          Visualization
-        </Typography>
-        <Typography
-          variant="body1"
-          color="text.secondary"
-          align="center"
-          mb={4}
-          px={2}
-          sx={{ maxWidth: 900 }}
-        >
-          {sampleDescription}
-        </Typography>
-        {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt="Generated visual"
-            style={{ maxWidth: "30%", borderRadius: 8 }}
-          />
-        ) : (
-          <Typography variant="body2" color="text.secondary">
-            No image provided.
-          </Typography>
-        )}
-      </Box>
+          <Stack
+            spacing={{ xs: 3, sm: 4, md: 5 }}
+            alignItems="center"
+            textAlign="center"
+          >
+            {/* Hero */}
+            {onlyTopic && (
+            <Box>
+              <Typography
+                component="h1"
+                sx={{
+                  fontWeight: 700,
+                  color: "#3c82af",
+                  fontSize: {
+                    xs: "clamp(22px, 6vw, 34px)",
+                    sm: "clamp(26px, 5vw, 40px)",
+                    md: "48px",
+                  },
+                  mb: { xs: 1, md: 1.5 },
+                }}
+              >
+                {onlyTopic}
+              </Typography>
 
-      {/* ✅ Main Upload Section */}
-      <Box
-        sx={{
-          height: "100vh",
-          width: "100vw",
-          display: "flex",
-          flexDirection: "column",
-          justifyContent: "center",
-          alignItems: "center",
-          bgcolor: "white",
-          marginTop: -70,
-        }}
-      ></Box>
+              <Typography
+                sx={{
+                  color: "text.secondary",
+                  fontSize: { xs: "0.95rem", sm: "1.05rem" },
+                  maxWidth: 720,
+                  mx: "auto",
+                }}
+              >
+                We turned your selected topics into clean, animated diagrams.
+                Regenerate any visual if you want a different take.
+              </Typography>
+            </Box>
+            )}
+            {/* Visual cards (no Grid) */}
+            <Stack spacing={3} sx={{ width: "100%", maxWidth: 720 }}>
+              {bundles.length === 0 ? (
+                <Paper
+                  elevation={3}
+                  sx={{
+                    p: { xs: 2, sm: 3 },
+                    borderRadius: 3,
+                    textAlign: "center",
+                  }}
+                >
+                  <Typography color="text.secondary">
+                    No topics provided.
+                  </Typography>
+                </Paper>
+              ) : (
+                bundles.map(({ topic, html, css, js, cached, rationale }) => (
+                  <Paper
+                    key={topic}
+                    elevation={3}
+                    sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, textAlign: "left" }}
+                  >
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      alignItems={{ xs: "flex-start", sm: "center" }}
+                      justifyContent="space-between"
+                      spacing={1.5}
+                      sx={{ mb: 1.5 }}
+                    >
+                      <Typography
+                        variant="h6"
+                        sx={{ fontWeight: 700, lineHeight: 1.2 }}
+                      >
+                        {topic}
+                      </Typography>
+
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => regenerate(topic)}
+                          sx={{ borderRadius: 2, textTransform: "none" }}
+                        >
+                          Regenerate
+                        </Button>
+                      </Stack>
+                    </Stack>
+
+                    {rationale && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1.5 }}
+                      >
+                        {rationale}
+                      </Typography>
+                    )}
+
+                    <VisualRunner html={html} css={css} js={js} />
+                  </Paper>
+                ))
+              )}
+            </Stack>
+          </Stack>
+        </Container>
+      </Box>
     </>
   );
 }
