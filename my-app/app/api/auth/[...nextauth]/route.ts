@@ -19,17 +19,15 @@ export const authOption: NextAuthOptions = {
     async signIn({ profile }) {
       if (!profile?.email) throw new Error("No profile");
 
-      // (Optional) store image in DB too:
+      // Ensure user exists (we don't store image in DB currently)
       await prisma.user.upsert({
         where: { email: profile.email },
         create: {
           email: profile.email,
           name: profile.name,
-          image: (profile as any).picture ?? null, // ✅ store if you want
         },
         update: {
           name: profile.name,
-          image: (profile as any).picture ?? undefined, // keep fresh
         },
       });
       return true;
@@ -40,12 +38,12 @@ export const authOption: NextAuthOptions = {
       if (profile) {
         const dbUser = await prisma.user.findUnique({
           where: { email: profile.email as string },
-          select: { image: true },
+          select: { id: true },
         });
         if (!dbUser) throw new Error("No user found");
         token.id = dbUser.id;
-        // Prefer Google picture; fall back to DB image if any
-        token.picture = (profile as any).picture ?? dbUser.image ?? token.picture;
+        token.picture = (profile as any).picture ?? (token as any).picture ?? null;
+        token.email = profile.email as string;
       }
       return token;
     },
@@ -63,5 +61,4 @@ export const authOption: NextAuthOptions = {
 };
 
 const handler = NextAuth(authOption);
-export default NextAuth(authOption);
 export { handler as GET, handler as POST };
