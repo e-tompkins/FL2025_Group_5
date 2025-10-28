@@ -201,8 +201,7 @@ export default function VisualsPage() {
                   mx: "auto",
                 }}
               >
-                We turned your selected topics into clean, animated diagrams.
-                Regenerate any visual if you want a different take.
+                This is the text to describe your visual.
               </Typography>
             </Box>
             )}
