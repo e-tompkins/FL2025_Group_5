@@ -17,7 +17,10 @@ import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-const pages = ["My Visuals", "Explore"];
+const pages = [
+  { label: "My Visuals", href: "/my-visuals" },
+  { label: "Explore", href: "/explore" },
+];
 const settings = ["Settings", "Logout"];
 const LOGO_SRC = "/logo.png"; // update if needed
 
@@ -97,8 +100,14 @@ export default function AppBarComponent() {
               sx={{ display: { xs: "block", md: "none" } }}
             >
               {pages.map((page) => (
-                <MenuItem key={page} onClick={handleCloseNavMenu}>
-                  <Box sx={{ fontSize: "0.95rem" }}>{page}</Box>
+                <MenuItem
+                  key={page.label}
+                  onClick={() => {
+                    handleCloseNavMenu();
+                    router.push(page.href);
+                  }}
+                >
+                  <Box sx={{ fontSize: "0.95rem" }}>{page.label}</Box>
                 </MenuItem>
               ))}
             </Menu>
@@ -131,8 +140,8 @@ export default function AppBarComponent() {
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             {pages.map((page) => (
               <Button
-                key={page}
-                onClick={handleCloseNavMenu}
+                key={page.label}
+                onClick={() => router.push(page.href)}
                 sx={{
                   my: 2,
                   color: "inherit",
@@ -143,7 +152,7 @@ export default function AppBarComponent() {
                   fontSize: "1.1rem",
                 }}
               >
-                {page}
+                {page.label}
               </Button>
             ))}
           </Box>
