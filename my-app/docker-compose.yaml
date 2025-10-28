@@ -1,0 +1,22 @@
+services:
+  db:
+    image: docker.io/mysql:latest
+    container_name: db
+    environment:
+      - MYSQL_ROOT_PASSWORD=Impact411!
+  app:
+    env_file: ".env"
+    environment:
+      - NEXT_WEBPACK_USE=1
+    build:
+      context: .
+      dockerfile: ./docker/Dockerfile
+    container_name: frontend
+    command: npm run dev
+    volumes:
+      - .:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    depends_on:
+      - db
