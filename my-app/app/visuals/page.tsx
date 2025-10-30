@@ -12,6 +12,7 @@ import {
   Stack,
   Button,
   Chip,
+  TextField,
 } from "@mui/material";
 import AppBar from "../components/AppBar";
 import VisualRunner from "../components/VisualRunner";
@@ -23,6 +24,7 @@ type CodeBundle = {
   js: string;
   cached?: boolean;
   rationale?: string;
+  userPrompt?: string;
 };
 
 export default function VisualsPage() {
@@ -42,11 +44,14 @@ export default function VisualsPage() {
 
   const [bundles, setBundles] = useState<CodeBundle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [editingTopic, setEditingTopic] = useState<string | null>(null);
+  const [currentEditText, setCurrentEditText] = useState<string>("");
   const onlyTopic = topics.length === 1 ? topics[0] : null;
-
+  const [isRegenerating, setIsRegenerating] = useState(false);
 
   // fetch anime.js code for each topic
   useEffect(() => {
+    console.log("i am here");
     let cancelled = false;
     (async () => {
       try {
@@ -59,9 +64,12 @@ export default function VisualsPage() {
             const res = await fetch("/api/visuals", {
               method: "POST",
               headers: { "content-type": "application/json" },
-              body: JSON.stringify({ topic }),
+              body: JSON.stringify({
+                topic,
+              }),
             });
             const data = await res.json();
+            console.log("data", data);
             if (!res.ok) throw new Error(data?.error || "API error");
             return {
               topic,
@@ -70,6 +78,7 @@ export default function VisualsPage() {
               js: data.js,
               cached: data.cached,
               rationale: data.rationale,
+              userPrompt: data.userPrompt,
             } as CodeBundle;
           })
         );
@@ -83,14 +92,21 @@ export default function VisualsPage() {
     };
   }, [topics]);
 
-  const regenerate = async (topic: string) => {
+  const regenerate = async (topic: string, promptOverride?: string) => {
     try {
+      console.log("Current edit text:", currentEditText);
+      console.log("prompt override", promptOverride);
       const res = await fetch("/api/visuals", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ topic, forceRegenerate: true }),
+        body: JSON.stringify({
+          topic,
+          forceRegenerate: true,
+          editPrompt: promptOverride ?? currentEditText,
+        }),
       });
       const data = await res.json();
+      console.log("regen data", data);
       if (!res.ok) throw new Error(data?.error || "API error");
       setBundles((prev) =>
         (prev || []).map((b) =>
@@ -102,6 +118,7 @@ export default function VisualsPage() {
                 js: data.js,
                 cached: false,
                 rationale: data.rationale,
+                userPrompt: data.userPrompt,
               }
             : b
         )
@@ -149,6 +166,23 @@ export default function VisualsPage() {
     );
   }
 
+  function edit(userPrompt: string | undefined, topic: string): void {
+    setEditingTopic((prev) => (prev === topic ? null : topic)); // toggle edit mode
+    setCurrentEditText(userPrompt || "");
+  }
+
+  async function handleSaveEdit(topic: string) {
+    try {
+      setIsRegenerating(true);
+      await regenerate(topic, currentEditText);
+      setEditingTopic(null); // hide text box
+    } catch (err) {
+      console.error("Error saving edit:", err);
+    } finally {
+      setIsRegenerating(false);
+    }
+  }
+
   return (
     <>
       <AppBar />
@@ -176,34 +210,34 @@ export default function VisualsPage() {
           >
             {/* Hero */}
             {onlyTopic && (
-            <Box>
-              <Typography
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                  color: "#3c82af",
-                  fontSize: {
-                    xs: "clamp(22px, 6vw, 34px)",
-                    sm: "clamp(26px, 5vw, 40px)",
-                    md: "48px",
-                  },
-                  mb: { xs: 1, md: 1.5 },
-                }}
-              >
-                {onlyTopic}
-              </Typography>
+              <Box>
+                <Typography
+                  component="h1"
+                  sx={{
+                    fontWeight: 700,
+                    color: "#3c82af",
+                    fontSize: {
+                      xs: "clamp(22px, 6vw, 34px)",
+                      sm: "clamp(26px, 5vw, 40px)",
+                      md: "48px",
+                    },
+                    mb: { xs: 1, md: 1.5 },
+                  }}
+                >
+                  {onlyTopic}
+                </Typography>
 
-              <Typography
-                sx={{
-                  color: "text.secondary",
-                  fontSize: { xs: "0.95rem", sm: "1.05rem" },
-                  maxWidth: 720,
-                  mx: "auto",
-                }}
-              >
-                This is the text to describe your visual.
-              </Typography>
-            </Box>
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: { xs: "0.95rem", sm: "1.05rem" },
+                    maxWidth: 720,
+                    mx: "auto",
+                  }}
+                >
+                  This is the text to describe your visual.
+                </Typography>
+              </Box>
             )}
             {/* Visual cards (no Grid) */}
             <Stack spacing={3} sx={{ width: "100%", maxWidth: 720 }}>
@@ -221,51 +255,109 @@ export default function VisualsPage() {
                   </Typography>
                 </Paper>
               ) : (
-                bundles.map(({ topic, html, css, js, cached, rationale }) => (
-                  <Paper
-                    key={topic}
-                    elevation={3}
-                    sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, textAlign: "left" }}
-                  >
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      alignItems={{ xs: "flex-start", sm: "center" }}
-                      justifyContent="space-between"
-                      spacing={1.5}
-                      sx={{ mb: 1.5 }}
+                bundles.map(
+                  ({ topic, html, css, js, cached, rationale, userPrompt }) => (
+                    <Paper
+                      key={topic}
+                      elevation={3}
+                      sx={{
+                        p: { xs: 2, sm: 3 },
+                        borderRadius: 3,
+                        textAlign: "left",
+                      }}
                     >
-                      <Typography
-                        variant="h6"
-                        sx={{ fontWeight: 700, lineHeight: 1.2 }}
-                      >
-                        {topic}
-                      </Typography>
-
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => regenerate(topic)}
-                          sx={{ borderRadius: 2, textTransform: "none" }}
-                        >
-                          Regenerate
-                        </Button>
-                      </Stack>
-                    </Stack>
-
-                    {rationale && (
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
+                      <Stack
+                        direction={{ xs: "column", sm: "row" }}
+                        alignItems={{ xs: "flex-start", sm: "center" }}
+                        justifyContent="space-between"
+                        spacing={1.5}
                         sx={{ mb: 1.5 }}
                       >
-                        {rationale}
-                      </Typography>
-                    )}
+                        <Typography
+                          variant="h6"
+                          sx={{ fontWeight: 700, lineHeight: 1.2 }}
+                        >
+                          {topic}
+                        </Typography>
 
-                    <VisualRunner html={html} css={css} js={js} />
-                  </Paper>
-                ))
+                        <Stack direction="row" spacing={1} alignItems="center">
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => regenerate(topic)}
+                            sx={{ borderRadius: 2, textTransform: "none" }}
+                          >
+                            Regenerate
+                          </Button>
+                          <Button
+                            size="small"
+                            variant="outlined"
+                            onClick={() => edit(userPrompt, topic)}
+                          >
+                            Edit prompt
+                          </Button>
+                        </Stack>
+                      </Stack>
+
+                      {editingTopic === topic && (
+                        <Box sx={{ mb: 2 }}>
+                          {isRegenerating ? (
+                            <Stack alignItems="center" sx={{ py: 2 }}>
+                              <CircularProgress />
+                              <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mt: 1 }}
+                              >
+                                Regenerating visual...
+                              </Typography>
+                            </Stack>
+                          ) : (
+                            <>
+                              <TextField
+                                fullWidth
+                                multiline
+                                minRows={3}
+                                value={currentEditText}
+                                onChange={(e) =>
+                                  setCurrentEditText(e.target.value)
+                                }
+                                variant="outlined"
+                                sx={{ mb: 1 }}
+                              />
+                              <Stack direction="row" spacing={1}>
+                                <Button
+                                  variant="contained"
+                                  onClick={() => handleSaveEdit(topic)}
+                                >
+                                  Regenerate
+                                </Button>
+                                <Button
+                                  variant="text"
+                                  onClick={() => setEditingTopic(null)}
+                                >
+                                  Cancel
+                                </Button>
+                              </Stack>
+                            </>
+                          )}
+                        </Box>
+                      )}
+
+                      {rationale && (
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mb: 1.5 }}
+                        >
+                          {rationale}
+                        </Typography>
+                      )}
+
+                      <VisualRunner html={html} css={css} js={js} />
+                    </Paper>
+                  )
+                )
               )}
             </Stack>
           </Stack>
