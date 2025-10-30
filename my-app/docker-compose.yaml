@@ -14,7 +14,7 @@ services:
       dockerfile: ./docker/Dockerfile
     container_name: frontend
     command: npm run dev
-    volumes:
+    volumes: # need volume for database container so that the visuals are not removed every time the db is restarted
       - .:/app
       - /app/node_modules
     ports:
