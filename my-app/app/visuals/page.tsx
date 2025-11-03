@@ -11,7 +11,8 @@ import {
   CircularProgress,
   Stack,
   Button,
-  Chip,
+  FormControlLabel,
+  Switch,
 } from "@mui/material";
 import AppBar from "../components/AppBar";
 import VisualRunner from "../components/VisualRunner";
@@ -23,6 +24,7 @@ type CodeBundle = {
   js: string;
   cached?: boolean;
   rationale?: string;
+  public?: boolean; // persisted visibility
 };
 
 export default function VisualsPage() {
@@ -43,7 +45,6 @@ export default function VisualsPage() {
   const [bundles, setBundles] = useState<CodeBundle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const onlyTopic = topics.length === 1 ? topics[0] : null;
-
 
   // fetch anime.js code for each topic
   useEffect(() => {
@@ -70,6 +71,7 @@ export default function VisualsPage() {
               js: data.js,
               cached: data.cached,
               rationale: data.rationale,
+              public: data.public,
             } as CodeBundle;
           })
         );
@@ -102,12 +104,38 @@ export default function VisualsPage() {
                 js: data.js,
                 cached: false,
                 rationale: data.rationale,
+                public: data.public,
               }
             : b
         )
       );
     } catch (e: any) {
       alert(e.message || "Failed to regenerate");
+    }
+  };
+
+  // toggle public/private (optimistic update + PATCH)
+  const togglePublic = async (topic: string, next: boolean) => {
+    // optimistic UI
+    setBundles((prev) =>
+      (prev || []).map((b) => (b.topic === topic ? { ...b, public: next } : b))
+    );
+    try {
+      const res = await fetch("/api/visuals", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic, public: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Update failed");
+      }
+    } catch (e: any) {
+      // revert on error
+      setBundles((prev) =>
+        (prev || []).map((b) => (b.topic === topic ? { ...b, public: !next } : b))
+      );
+      alert(e.message || "Failed to update visibility");
     }
   };
 
@@ -174,37 +202,38 @@ export default function VisualsPage() {
             alignItems="center"
             textAlign="center"
           >
-            {/* Hero */}
+            {/* Hero (only when a single topic) */}
             {onlyTopic && (
-            <Box>
-              <Typography
-                component="h1"
-                sx={{
-                  fontWeight: 700,
-                  color: "#3c82af",
-                  fontSize: {
-                    xs: "clamp(22px, 6vw, 34px)",
-                    sm: "clamp(26px, 5vw, 40px)",
-                    md: "48px",
-                  },
-                  mb: { xs: 1, md: 1.5 },
-                }}
-              >
-                {onlyTopic}
-              </Typography>
+              <Box>
+                <Typography
+                  component="h1"
+                  sx={{
+                    fontWeight: 700,
+                    color: "#3c82af",
+                    fontSize: {
+                      xs: "clamp(22px, 6vw, 34px)",
+                      sm: "clamp(26px, 5vw, 40px)",
+                      md: "48px",
+                    },
+                    mb: { xs: 1, md: 1.5 },
+                  }}
+                >
+                  {onlyTopic}
+                </Typography>
 
-              <Typography
-                sx={{
-                  color: "text.secondary",
-                  fontSize: { xs: "0.95rem", sm: "1.05rem" },
-                  maxWidth: 720,
-                  mx: "auto",
-                }}
-              >
-                This is the text to describe your visual.
-              </Typography>
-            </Box>
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: { xs: "0.95rem", sm: "1.05rem" },
+                    maxWidth: 720,
+                    mx: "auto",
+                  }}
+                >
+                  This is the text to describe your visual.
+                </Typography>
+              </Box>
             )}
+
             {/* Visual cards (no Grid) */}
             <Stack spacing={3} sx={{ width: "100%", maxWidth: 720 }}>
               {bundles.length === 0 ? (
@@ -221,7 +250,7 @@ export default function VisualsPage() {
                   </Typography>
                 </Paper>
               ) : (
-                bundles.map(({ topic, html, css, js, cached, rationale }) => (
+                bundles.map(({ topic, html, css, js, cached, rationale, public: isPublic }) => (
                   <Paper
                     key={topic}
                     elevation={3}
@@ -241,7 +270,24 @@ export default function VisualsPage() {
                         {topic}
                       </Typography>
 
-                      <Stack direction="row" spacing={1} alignItems="center">
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        {/* Visibility switch */}
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={!!isPublic}
+                              onChange={(_, checked) => togglePublic(topic, checked)}
+                              color="primary"
+                            />
+                          }
+                          label={isPublic ? "Public" : "Private"}
+                          sx={{
+                            ".MuiFormControlLabel-label": {
+                              fontWeight: 600,
+                              color: isPublic ? "primary.main" : "text.secondary",
+                            },
+                          }}
+                        />
                         <Button
                           size="small"
                           variant="outlined"

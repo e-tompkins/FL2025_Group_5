@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
     if (topic) {
       const v = await prisma.visual.findUnique({
         where: { userId_topic: { userId: user.id, topic } },
-        select: { topic: true, html: true, css: true, js: true, updatedAt: true },
+        select: { topic: true, html: true, css: true, js: true, public: true, updatedAt: true },
       });
       if (!v) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ ...v, css: v.css ?? "" });
@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
     const list = await prisma.visual.findMany({
       where: { userId: user.id },
       orderBy: { updatedAt: "desc" },
-      select: { topic: true, updatedAt: true,},
+      select: { topic: true, public: true, updatedAt: true,},
     });
     return NextResponse.json({ items: list });
   } catch (e: any) {
@@ -54,6 +54,35 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Failed to fetch visuals", details: e.message }, { status: 500 });
   }
 }
+
+// ----------------------------- PATCH (toggle public) -----------------------------
+export async function PATCH(req: NextRequest) {
+  const session = await getServerSession(authOption);
+  if (!session?.user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  const email = session.user.email;
+
+  try {
+    const { topic, public: isPublic } = await req.json();
+    if (!topic || typeof isPublic !== "boolean") {
+      return NextResponse.json({ error: "Provide { topic, public:boolean }" }, { status: 400 });
+    }
+
+    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    const updated = await prisma.visual.update({
+      where: { userId_topic: { userId: user.id, topic } },
+      data: { public: isPublic },
+      select: { topic: true, public: true },
+    });
+
+    return NextResponse.json(updated);
+  } catch (e: any) {
+    console.error(e);
+    return NextResponse.json({ error: "Failed to update visibility", details: e.message }, { status: 500 });
+  }
+}
+
 
 // ----------------------------- POST -----------------------------
 export async function POST(req: NextRequest) {
@@ -188,7 +217,7 @@ OUTPUT
         modelUsed: "gpt-4o-mini",
         user: { connect: { id: userId } },
       },
-      select: { html: true, css: true, js: true},
+      select: { html: true, css: true, js: true, public: true},
     });
 
     return NextResponse.json({
@@ -196,6 +225,7 @@ OUTPUT
       html: saved.html,
       css: saved.css ?? "",
       js: saved.js,
+      public: saved.public,
       cached: false,
     });
   } catch (e: any) {
