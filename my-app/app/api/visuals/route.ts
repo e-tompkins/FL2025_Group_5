@@ -32,12 +32,20 @@ export async function GET(req: NextRequest) {
       where: { email },
       select: { id: true },
     });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user)
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     if (topic) {
       const v = await prisma.visual.findUnique({
         where: { userId_topic: { userId: user.id, topic } },
         select: { topic: true, html: true, css: true, js: true, public: true, updatedAt: true },
+        select: {
+          topic: true,
+          html: true,
+          css: true,
+          js: true,
+          updatedAt: true,
+        },
       });
       if (!v) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ ...v, css: v.css ?? "" });
@@ -51,7 +59,10 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ items: list });
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to fetch visuals", details: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch visuals", details: e.message },
+      { status: 500 }
+    );
   }
 }
 
@@ -93,7 +104,7 @@ export async function POST(req: NextRequest) {
   const email = session.user.email;
 
   try {
-    const { topic, forceRegenerate } = await req.json();
+    const { topic, forceRegenerate, editPrompt = "" } = await req.json();
     if (!topic || typeof topic !== "string" || topic.trim().length < 2) {
       return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
     }
@@ -109,7 +120,10 @@ export async function POST(req: NextRequest) {
       });
       userId = u.id;
     } catch (e: any) {
-      const u = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      const u = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
       if (!u) throw e;
       userId = u.id;
     }
@@ -117,7 +131,7 @@ export async function POST(req: NextRequest) {
     if (!forceRegenerate) {
       const existing = await prisma.visual.findUnique({
         where: { userId_topic: { userId, topic } },
-        select: { html: true, css: true, js: true},
+        select: { html: true, css: true, js: true },
       });
       if (existing) {
         return NextResponse.json({
@@ -150,20 +164,25 @@ HARD REQUIREMENTS
 - ≤ ~150 lines total. Stage animation: axes → labels → objects → highlight.
 `.trim();
 
-    const userPrompt = `
-TOPIC
-${topic}
+    var userPrompt;
+    if (editPrompt.length == 0) {
+      userPrompt = `
+        TOPIC
+        ${topic}
 
-AUDIENCE
-- Visual learner; needs a correct, minimal diagram.
+        AUDIENCE
+        - Visual learner; needs a correct, minimal diagram.
 
-REQUIREMENTS
-- Choose an appropriate minimal visual form (function plot, comparison, process-flow, network, etc.).
-- Provide short labels and only essential motion.
+        REQUIREMENTS
+        - Choose an appropriate minimal visual form (function plot, comparison, process-flow, network, etc.).
+        - Provide short labels and only essential motion.
 
-OUTPUT
-- Return ONLY JSON with { rationale, html, css, js }.
-`.trim();
+        OUTPUT
+        - Return ONLY JSON with { rationale, html, css, js }.
+        `.trim();
+    } else {
+      userPrompt = editPrompt;
+    }
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
@@ -175,7 +194,7 @@ OUTPUT
     });
 
     const raw = completion.choices[0]?.message?.content ?? "";
-    let payload: GenPayload & { rationale?: string } | null = null;
+    let payload: (GenPayload & { rationale?: string }) | null = null;
     try {
       payload = JSON.parse(raw);
     } catch {
@@ -184,7 +203,10 @@ OUTPUT
     }
 
     if (!payload?.html || !payload?.js) {
-      return NextResponse.json({ error: "Model returned invalid code" }, { status: 502 });
+      return NextResponse.json(
+        { error: "Model returned invalid code" },
+        { status: 502 }
+      );
     }
     // if (!/id=\\"viz\\"/.test(payload.html) || !/id=\\"chart\\"/.test(payload.html)) {
     //   return NextResponse.json({ error: "HTML must include #viz and an <svg id=\"chart\">" }, { status: 502 });
@@ -193,7 +215,8 @@ OUTPUT
     //   return NextResponse.json({ error: "JS must use anime.*" }, { status: 502 });
     // }
 
-    const stripScripts = (s: string) => s.replace(/<script[^>]*>/gi, "").replace(/<\/script>/gi, "");
+    const stripScripts = (s: string) =>
+      s.replace(/<script[^>]*>/gi, "").replace(/<\/script>/gi, "");
     const clean = {
       rationale: (payload.rationale ?? "").trim(),
       html: payload.html,
@@ -227,9 +250,13 @@ OUTPUT
       js: saved.js,
       public: saved.public,
       cached: false,
+      userPrompt: userPrompt,
     });
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to generate visual", details: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate visual", details: e.message },
+      { status: 500 }
+    );
   }
 }
