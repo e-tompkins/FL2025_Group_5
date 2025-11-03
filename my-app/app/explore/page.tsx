@@ -1,33 +1,18 @@
-// app/my-visuals/page.tsx
-import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth/next";
-import { authOption } from "@/app/api/auth/[...nextauth]/route";
+// app/explore/page.tsx
 import { prisma } from "@/lib/prisma";
-
-// UI (server-safe MUI usage)
 import AppBar from "../components/AppBar";
 import { Box, Container, Stack, Typography, Paper } from "@mui/material";
-
-// Client list with public/private toggles
-import MyVisualsListClient from "./components/VisualList";
+import PublicVisualList from "./components/PublicVisualList";
 
 export const metadata = {
-  title: "My Visuals",
-  description: "A list of your saved visuals",
+  title: "Explore Visuals",
+  description: "Discover public visuals shared by others",
 };
 
-export default async function MyVisualsPage() {
-  const session = await getServerSession(authOption);
-  if (!session?.user?.email) redirect("/api/auth/signin");
-
-  const dbUser = await prisma.user.findUnique({
-    where: { email: session.user.email },
-    select: { id: true },
-  });
-  if (!dbUser) redirect("/api/auth/signin");
-
+export default async function ExplorePage() {
+  // 🔍 Get all visuals where public = true (any user)
   const visuals = await prisma.visual.findMany({
-    where: { userId: dbUser.id },
+    where: { public: true },
     orderBy: { createdAt: "desc" },
     select: {
       id: true,
@@ -35,25 +20,25 @@ export default async function MyVisualsPage() {
       html: true,
       modelUsed: true,
       createdAt: true,
-      public: true, // <-- include visibility
+      public: true,
+      user: { select: { email: true } }, // optional, show who made it
     },
   });
 
-  // Serialize for client (Dates -> string)
   const items = visuals.map(v => ({
     id: v.id,
     topic: v.topic,
     html: v.html ?? "",
     modelUsed: v.modelUsed ?? "",
     createdAt: v.createdAt.toISOString(),
-    public: !!v.public,
+    author: v.user?.email ?? "Anonymous",
+    public: v.public ?? false,
   }));
 
   return (
     <>
       <AppBar />
 
-      {/* Match the Upload/Visuals layout */}
       <Box
         sx={{
           bgcolor: "white",
@@ -89,7 +74,7 @@ export default async function MyVisualsPage() {
                   mb: { xs: 1, md: 1.5 },
                 }}
               >
-                My Visuals
+                Explore Visuals
               </Typography>
 
               <Typography
@@ -100,11 +85,11 @@ export default async function MyVisualsPage() {
                   mx: "auto",
                 }}
               >
-                A list of your saved visuals. Toggle visibility to share them publicly.
+                See visual explanations and models shared publicly by other learners.
               </Typography>
             </Box>
 
-            {/* List container (keeps style consistent with other pages) */}
+            {/* List container */}
             <Paper
               elevation={3}
               sx={{
@@ -117,10 +102,10 @@ export default async function MyVisualsPage() {
             >
               {items.length === 0 ? (
                 <Typography color="text.secondary">
-                  You haven’t saved any visuals yet.
+                  No public visuals yet — be the first to share!
                 </Typography>
               ) : (
-                <MyVisualsListClient visuals={items} />
+                <PublicVisualList visuals={items} />
               )}
             </Paper>
           </Stack>
