@@ -226,17 +226,6 @@ export default function VisualsPage() {
                 >
                   {onlyTopic}
                 </Typography>
-
-                <Typography
-                  sx={{
-                    color: "text.secondary",
-                    fontSize: { xs: "0.95rem", sm: "1.05rem" },
-                    maxWidth: 720,
-                    mx: "auto",
-                  }}
-                >
-                  This is the text to describe your visual.
-                </Typography>
               </Box>
             )}
             {/* Visual cards (no Grid) */}
