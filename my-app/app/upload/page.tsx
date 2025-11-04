@@ -123,7 +123,6 @@ export default function UploadPage() {
                     ? "linear-gradient(90deg, #1976d2, #9c27b0)"
                     : "linear-gradient(90deg, #90caf9, #ce93d8)",
                   WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
                 }}
               >
                 Turn your notes into

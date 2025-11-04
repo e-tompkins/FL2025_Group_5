@@ -22,56 +22,78 @@ export async function GET(req: NextRequest) {
   if (!session?.user?.email) {
     return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   }
+
   const email = session.user.email;
 
   try {
     const url = new URL(req.url);
     const topic = url.searchParams.get("topic") ?? "";
     const tagParam = url.searchParams.get("tag");
+    const mine = url.searchParams.get("mine") === "true"; // for /my-visuals
 
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true },
     });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
 
+    // ---------- Case 1: Get specific visual by topic ----------
     if (topic) {
       const v = await prisma.visual.findFirst({
-        where: { userId: user.id, topic },
+        where: {
+          topic,
+          OR: [
+            { public: true },
+            { userId: user.id },
+          ],
+        },
         orderBy: { createdAt: "desc" },
         select: {
+          id: true,
           topic: true,
           html: true,
           css: true,
           js: true,
+          public: true,
+          tags: true,
           updatedAt: true,
-          id: true,
         },
       });
       if (!v) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json({ ...v, css: v.css ?? "" });
+      return NextResponse.json(v);
     }
 
-    let list;
+    // ---------- Case 2: My Visuals ----------
+    if (mine) {
+      const myVisuals = await prisma.visual.findMany({
+        where: { userId: user.id },
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          topic: true,
+          html: true,
+          css: true,
+          js: true,
+          public: true,
+          tags: true,
+          updatedAt: true,
+        },
+      });
+      return NextResponse.json({ items: myVisuals });
+    }
+
+    // ---------- Case 3: Tagged search ----------
     if (tagParam) {
-      // parameterized raw query: find rows where JSON array 'tags' contains the value
-      list = await prisma.$queryRaw<
-        Array<{
-          id: string;
-          topic: string;
-          html: string;
-          css: string | null;
-          js: string;
-          tags: any;
-          public: boolean;
-          updatedAt: Date;
-        }>
-      >`SELECT id, topic, html, css, js, tags, public, updatedAt
-        FROM Visual
-        WHERE tags IS NOT NULL AND JSON_CONTAINS(tags, JSON_ARRAY(${tagParam}))
-        ORDER BY updatedAt DESC`;
-    } else {
-      list = await prisma.visual.findMany({
+      const visualsByTag = await prisma.visual.findMany({
+        where: {
+          OR: [
+            { public: true },
+            { userId: user.id },
+          ],
+          tags: { array_contains: [tagParam] },
+        },
         orderBy: { updatedAt: "desc" },
         select: {
           id: true,
@@ -84,14 +106,35 @@ export async function GET(req: NextRequest) {
           updatedAt: true,
         },
       });
+      return NextResponse.json({ items: visualsByTag });
     }
 
-    return NextResponse.json({ items: list });
+    // ---------- Case 4: Explore / default ----------
+    const publicVisuals = await prisma.visual.findMany({
+      where: { public: true },
+      orderBy: { updatedAt: "desc" },
+      select: {
+        id: true,
+        topic: true,
+        html: true,
+        css: true,
+        js: true,
+        tags: true,
+        public: true,
+        updatedAt: true,
+      },
+    });
+
+    return NextResponse.json({ items: publicVisuals });
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to fetch visuals", details: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to fetch visuals", details: e.message },
+      { status: 500 }
+    );
   }
 }
+
 
 // ----------------------------- PATCH (toggle public) -----------------------------
 export async function PATCH(req: NextRequest) {

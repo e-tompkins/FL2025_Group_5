@@ -31,5 +31,5 @@ model Visual {
   tags      Json?
   user      User     @relation(fields: [userId], references: [id])
 
-  @@index([userId], map: "Visual_userId_fkey")
+  @@unique([userId, topic])
 }
