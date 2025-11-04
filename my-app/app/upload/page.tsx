@@ -34,12 +34,14 @@ export default function UploadPage() {
   ];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    console.log("HANDLE FILE CHANGE");
     const selectedFile = e.target.files?.[0];
     if (selectedFile && allowedTypes.includes(selectedFile.type)) {
       setFile(selectedFile);
     } else {
       alert("Please upload a PDF or PowerPoint file.");
     }
+    e.target.value = "";
   };
 
   const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
@@ -60,7 +62,10 @@ export default function UploadPage() {
     const formData = new FormData();
     formData.append("file", file);
 
-    const res = await fetch("/api/process/topics", { method: "POST", body: formData });
+    const res = await fetch("/api/process/topics", {
+      method: "POST",
+      body: formData,
+    });
     const data = await res.json();
 
     setUploading(false);
@@ -86,9 +91,10 @@ export default function UploadPage() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          background: theme.palette.mode === "light"
-            ? "linear-gradient(135deg, #eef3f9 0%, #fdfdfd 100%)"
-            : "linear-gradient(135deg, #0d1117 0%, #1a1d23 100%)",
+          background:
+            theme.palette.mode === "light"
+              ? "linear-gradient(135deg, #eef3f9 0%, #fdfdfd 100%)"
+              : "linear-gradient(135deg, #0d1117 0%, #1a1d23 100%)",
           transition: "background 0.3s ease",
           px: 3,
         }}
@@ -119,9 +125,10 @@ export default function UploadPage() {
                   mb: 2,
                   fontSize: { xs: "2rem", md: "3rem" },
                   lineHeight: 1.2,
-                  background: theme.palette.mode === "light"
-                    ? "linear-gradient(90deg, #1976d2, #9c27b0)"
-                    : "linear-gradient(90deg, #90caf9, #ce93d8)",
+                  background:
+                    theme.palette.mode === "light"
+                      ? "linear-gradient(90deg, #1976d2, #9c27b0)"
+                      : "linear-gradient(90deg, #90caf9, #ce93d8)",
                   WebkitBackgroundClip: "text",
                 }}
               >
@@ -186,9 +193,10 @@ export default function UploadPage() {
                   textAlign: "center",
                   cursor: "pointer",
                   backdropFilter: "blur(12px)",
-                  background: theme.palette.mode === "light"
-                    ? "rgba(255, 255, 255, 0.8)"
-                    : "rgba(255, 255, 255, 0.05)",
+                  background:
+                    theme.palette.mode === "light"
+                      ? "rgba(255, 255, 255, 0.8)"
+                      : "rgba(255, 255, 255, 0.05)",
                   border: "1px solid rgba(255,255,255,0.15)",
                   transition: "transform 0.2s ease, box-shadow 0.2s ease",
                   "&:hover": {
@@ -230,17 +238,21 @@ export default function UploadPage() {
                     fontWeight: 600,
                     textTransform: "none",
                   }}
-                  component="label"
+                  onClick={(e) => {
+                    e.stopPropagation(); // <-- STOPS BUBBLING
+                    inputRef.current?.click();
+                  }}
                 >
                   Choose File
-                  <input
-                    ref={inputRef}
-                    type="file"
-                    accept={allowedTypes.join(",")}
-                    hidden
-                    onChange={handleFileChange}
-                  />
                 </Button>
+
+                <input
+                  ref={inputRef}
+                  type="file"
+                  accept={allowedTypes.join(",")}
+                  style={{ display: "none" }}
+                  onChange={handleFileChange}
+                />
 
                 {uploading && (
                   <Box sx={{ mt: 3 }}>
@@ -257,7 +269,10 @@ export default function UploadPage() {
 
                 {file && !uploading && (
                   <Button
-                    onClick={handleUpload}
+                    onClick={(e) => {
+                      e.stopPropagation(); 
+                      handleUpload(); 
+                    }}
                     variant="contained"
                     fullWidth
                     sx={{
