@@ -16,16 +16,21 @@ import Image from "next/image";
 import { signOut } from "next-auth/react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Brightness4, Brightness7 } from "@mui/icons-material";
+import { useTheme } from "@mui/material/styles";
+
 
 const pages = [
   { label: "My Visuals", href: "/my-visuals" },
   { label: "Explore", href: "/explore" },
 ];
 const settings = ["Settings", "Logout"];
-const LOGO_SRC = "/logo.png"; // update if needed
+const LOGO_SRC = "/logo.png";
 
 export default function AppBarComponent() {
   const router = useRouter();
+  const theme = useTheme();
+
   const { data: session } = useSession();
 
   const avatarSrc = session?.user?.image ?? undefined;
@@ -44,29 +49,33 @@ export default function AppBarComponent() {
     setAnchorElNav(event.currentTarget);
   const handleOpenUserMenu = (event: React.MouseEvent<HTMLElement>) =>
     setAnchorElUser(event.currentTarget);
-
   const handleCloseNavMenu = () => setAnchorElNav(null);
   const handleCloseUserMenu = () => setAnchorElUser(null);
 
   return (
     <MuiAppBar
       position="static"
+      elevation={0}
       sx={{
-        bgcolor: "white",
+        bgcolor: (theme) =>
+          theme.palette.mode === "light" ? "white" : theme.palette.background.paper,
         color: "text.primary",
-        borderBottom: (t) => `1px solid ${t.palette.divider}`,
+        borderBottom: (t) =>
+          t.palette.mode === "light"
+            ? `1px solid ${t.palette.divider}`
+            : "1px solid rgba(255,255,255,0.1)",
         boxShadow: 0,
       }}
     >
       <Container maxWidth="xl">
         <Toolbar disableGutters sx={{ minHeight: 64 }}>
-          {/* ✅ Desktop logo only (larger rectangular clickable area) */}
+          {/* Desktop logo */}
           <Box sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", mr: 3 }}>
             <Box
               onClick={() => router.push("/upload")}
               sx={{
                 position: "relative",
-                width: 200, // ✅ increase size (try 100–150)
+                width: 200,
                 height: 100,
                 cursor: "pointer",
                 borderRadius: "8px",
@@ -85,7 +94,7 @@ export default function AppBarComponent() {
             </Box>
           </Box>
 
-          {/* ✅ Mobile menu + logo */}
+          {/* Mobile menu + logo */}
           <Box sx={{ flexGrow: 1, display: { xs: "flex", md: "none" }, alignItems: "center" }}>
             <IconButton size="large" onClick={handleOpenNavMenu} color="inherit">
               <MenuIcon />
@@ -116,7 +125,7 @@ export default function AppBarComponent() {
               onClick={() => router.push("/upload")}
               sx={{
                 position: "relative",
-                width: 100, // ✅ bigger mobile logo
+                width: 100,
                 height: 32,
                 cursor: "pointer",
                 borderRadius: "6px",
@@ -136,7 +145,7 @@ export default function AppBarComponent() {
             </Box>
           </Box>
 
-          {/* ✅ Desktop nav */}
+          {/* Desktop nav */}
           <Box sx={{ flexGrow: 1, display: { xs: "none", md: "flex" } }}>
             {pages.map((page) => (
               <Button
@@ -145,7 +154,6 @@ export default function AppBarComponent() {
                 sx={{
                   my: 2,
                   color: "inherit",
-                  fontFamily: "sans-serif",
                   textTransform: "none",
                   fontWeight: 400,
                   letterSpacing: ".04rem",
@@ -157,8 +165,20 @@ export default function AppBarComponent() {
             ))}
           </Box>
 
-          {/* ✅ Avatar menu */}
-          <Box sx={{ flexGrow: 0 }}>
+          {/* Right-side controls: theme + avatar */}
+          <Box sx={{ flexGrow: 0, display: "flex", alignItems: "center", gap: 1.5 }}>
+            {/* 🌙 Dark mode toggle */}
+            <IconButton
+              sx={{ ml: 1 }}
+              onClick={() => {
+                const next = theme.palette.mode === "light" ? "dark" : "light";
+                localStorage.setItem("theme-mode", next);
+                window.location.reload();
+              }}
+            >
+              {theme.palette.mode === "light" ? <Brightness4 /> : <Brightness7 />}
+            </IconButton>
+
             <Tooltip title="Open settings">
               <IconButton onClick={handleOpenUserMenu} sx={{ p: 0 }}>
                 <Avatar alt={displayName} src={avatarSrc}>
