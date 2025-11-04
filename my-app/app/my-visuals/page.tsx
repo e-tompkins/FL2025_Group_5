@@ -58,7 +58,7 @@ export default async function MyVisualsPage() {
       {/* Match the Upload/Visuals layout */}
       <Box
         sx={{
-          bgcolor: "white",
+          bgcolor: "background.default",
           minHeight: "100dvh",
           display: "flex",
           alignItems: "flex-start",
@@ -82,7 +82,6 @@ export default async function MyVisualsPage() {
                 component="h1"
                 sx={{
                   fontWeight: 700,
-                  color: "#3c82af",
                   fontSize: {
                     xs: "clamp(22px, 6vw, 34px)",
                     sm: "clamp(26px, 5vw, 40px)",

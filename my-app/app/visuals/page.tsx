@@ -299,12 +299,12 @@ export default function VisualsPage() {
   return (
     <>
       <AppBar />
-      <Box sx={{ bgcolor: "white", minHeight: "100dvh", display: "flex", alignItems: "flex-start" }}>
+      <Box sx={{ bgcolor: "background.default", minHeight: "100dvh", display: "flex", alignItems: "flex-start" }}>
         <Container maxWidth="md" sx={{ pt: { xs: 4, sm: 6, md: 8 }, pb: { xs: 6, sm: 8 } }}>
           <Stack spacing={{ xs: 3, sm: 4, md: 5 }} alignItems="center" textAlign="center">
             {onlyTopic && (
               <Box>
-                <Typography component="h1" sx={{ fontWeight: 700, color: "#3c82af", fontSize: { xs: "clamp(22px,6vw,34px)", sm: "clamp(26px,5vw,40px)", md: "48px" }, mb: 1 }}>
+                <Typography component="h1" sx={{ fontWeight: 700, fontSize: { xs: "clamp(22px,6vw,34px)", sm: "clamp(26px,5vw,40px)", md: "48px" }, mb: 1 }}>
                   {onlyTopic}
                 </Typography>
                 <Typography sx={{ color: "text.secondary", fontSize: { xs: "0.95rem", sm: "1.05rem" }, maxWidth: 720, mx: "auto" }}>

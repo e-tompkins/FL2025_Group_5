@@ -1,6 +1,17 @@
 "use client";
+
 import React, { useState } from "react";
-import { FormControlLabel, Switch, Button } from "@mui/material";
+import {
+  FormControlLabel,
+  Switch,
+  Button,
+  Box,
+  Typography,
+  Paper,
+  Stack,
+  Chip,
+} from "@mui/material";
+import { useTheme } from "@mui/material/styles";
 
 type VisualItem = {
   id: string;
@@ -9,18 +20,17 @@ type VisualItem = {
   modelUsed?: string | null;
   createdAt: string | Date;
   public?: boolean;
-  tags?: string[]; // <-- add tags
+  tags?: string[];
 };
 
 export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
   const [rows, setRows] = useState(visuals);
+  const theme = useTheme();
 
   const togglePublic = async (topic: string, next: boolean) => {
-    // Optimistic UI update
     setRows((prev) =>
       prev.map((v) => (v.topic === topic ? { ...v, public: next } : v))
     );
-
     try {
       const res = await fetch("/api/visuals", {
         method: "PATCH",
@@ -32,7 +42,6 @@ export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
         throw new Error(data?.error || "Failed to update visibility");
       }
     } catch (err: any) {
-      // Revert on failure
       setRows((prev) =>
         prev.map((v) => (v.topic === topic ? { ...v, public: !next } : v))
       );
@@ -42,56 +51,52 @@ export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
 
   if (!rows || rows.length === 0) {
     return (
-      <div
-        style={{
-          padding: 16,
-          border: "1px dashed #ccc",
-          borderRadius: 8,
-          maxWidth: 800,
+      <Paper
+        variant="outlined"
+        sx={{
+          p: 2,
+          borderStyle: "dashed",
+          textAlign: "center",
+          color: "text.secondary",
+          bgcolor: "background.paper",
         }}
       >
         No visuals yet.
-      </div>
+      </Paper>
     );
   }
 
   return (
-    <div
-      style={{
-        display: "grid",
-        gap: 16,
-        gridTemplateColumns: "1fr",
-        maxWidth: 1200,
-      }}
-    >
+    <Box display="grid" gap={2} maxWidth={1200}>
       {rows.map((v) => (
-        <article
+        <Paper
           key={v.id}
-          style={{
-            border: "1px solid #e6e6e6",
-            borderRadius: 10,
-            padding: 14,
-            background: "#fff",
-            boxShadow: "0 1px 3px rgba(16,24,40,0.03)",
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            bgcolor: "background.paper",
+            boxShadow: 1,
+            transition: "background-color 0.3s, color 0.3s",
           }}
         >
-          <header
-            style={{
-              display: "flex",
-              justifyContent: "space-between",
-              alignItems: "center",
-              marginBottom: 10,
-            }}
+          {/* Header */}
+          <Stack
+            direction={{ xs: "column", sm: "row" }}
+            justifyContent="space-between"
+            alignItems={{ xs: "flex-start", sm: "center" }}
+            mb={1.5}
           >
-            <div>
-              <h2 style={{ margin: 0, fontSize: 18 }}>{v.topic}</h2>
-              <div style={{ color: "#666", fontSize: 13 }}>
+            <Box>
+              <Typography variant="h6" fontWeight={700}>
+                {v.topic}
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
                 {v.modelUsed ?? "No model"} ·{" "}
                 {new Date(v.createdAt).toLocaleString()}
-              </div>
-            </div>
+              </Typography>
+            </Box>
 
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+            <Stack direction="row" alignItems="center" gap={1.5}>
               <FormControlLabel
                 control={
                   <Switch
@@ -104,13 +109,13 @@ export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
                 sx={{
                   ".MuiFormControlLabel-label": {
                     fontWeight: 600,
-                    color: v.public ? "#1976d2" : "#666",
+                    color: v.public ? "primary.main" : "text.secondary",
                   },
                 }}
               />
               <Button
                 size="small"
-                variant="outlined"
+                variant="contained"
                 onClick={() =>
                   window.open(
                     `/visuals?topics=${encodeURIComponent(
@@ -128,55 +133,53 @@ export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
               >
                 Open
               </Button>
-            </div>
-          </header>
+            </Stack>
+          </Stack>
 
-          <section
-            style={{ borderTop: "1px solid #f0f0f0", paddingTop: 12 }}
-          >
-            <div
-              style={{
-                border: "1px solid #f5f5f5",
-                borderRadius: 8,
-                padding: 10,
-                background: "#fafafa",
-              }}
-              // NOTE: only do this for trusted/sanitized HTML
-              dangerouslySetInnerHTML={{ __html: v.html }}
-            />
-          </section>
-
-          {/* Tags area */}
-          <div
-            style={{
-              marginTop: 12,
-              display: "flex",
-              gap: 8,
-              flexWrap: "wrap",
+          {/* Visual HTML */}
+          <Box
+            sx={{
+              borderTop: "1px solid",
+              borderColor: "divider",
+              pt: 1.5,
             }}
           >
+            <Box
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 2,
+                p: 1.5,
+                bgcolor:
+                  theme.palette.mode === "dark"
+                    ? "rgba(255,255,255,0.03)"
+                    : "rgba(0,0,0,0.02)",
+              }}
+              dangerouslySetInnerHTML={{ __html: v.html }}
+            />
+          </Box>
+
+          {/* Tags */}
+          <Stack direction="row" gap={1} flexWrap="wrap" mt={1.5}>
             {(v.tags ?? []).map((t) => (
-              <button
+              <Chip
                 key={t}
-                onClick={() => {
-                  // navigate to visuals filtered by tag
-                  window.location.href = `/visuals?tag=${encodeURIComponent(t)}`;
-                }}
-                style={{
-                  border: "1px solid #e0e0e0",
-                  background: "#fff",
-                  padding: "4px 8px",
-                  borderRadius: 16,
+                label={t}
+                onClick={() =>
+                  (window.location.href = `/visuals?tag=${encodeURIComponent(t)}`)
+                }
+                clickable
+                variant="outlined"
+                sx={{
                   fontSize: 12,
+                  bgcolor: "background.default",
                   cursor: "pointer",
                 }}
-              >
-                {t}
-              </button>
+              />
             ))}
-          </div>
-        </article>
+          </Stack>
+        </Paper>
       ))}
-    </div>
+    </Box>
   );
 }

@@ -1,18 +1,39 @@
 "use client";
 
 import { createTheme, ThemeProvider, CssBaseline } from "@mui/material";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, createContext, useContext } from "react";
 import { Poppins } from "next/font/google";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["500", "600", "700"] });
 
-export default function ThemeModeProvider({ children }: { children: React.ReactNode }) {
-  const [mode, setMode] = useState<"light" | "dark">("light");
+type ThemeMode = "light" | "dark";
+type ThemeContextType = { mode: ThemeMode; toggleMode: () => void };
 
+const ThemeModeContext = createContext<ThemeContextType | undefined>(undefined);
+
+export const useThemeMode = () => {
+  const ctx = useContext(ThemeModeContext);
+  if (!ctx) throw new Error("useThemeMode must be used within ThemeModeProvider");
+  return ctx;
+};
+
+export default function ThemeModeProvider({ children }: { children: React.ReactNode }) {
+  const [mode, setMode] = useState<ThemeMode>("light");
+
+  // Load saved preference
   useEffect(() => {
-    const saved = localStorage.getItem("theme-mode") as "light" | "dark" | null;
+    const saved = localStorage.getItem("theme-mode") as ThemeMode | null;
     if (saved) setMode(saved);
   }, []);
+
+  // Toggle + persist
+  const toggleMode = () => {
+    setMode((prev) => {
+      const next = prev === "light" ? "dark" : "light";
+      localStorage.setItem("theme-mode", next);
+      return next;
+    });
+  };
 
   const theme = useMemo(
     () =>
@@ -57,5 +78,12 @@ export default function ThemeModeProvider({ children }: { children: React.ReactN
     [mode]
   );
 
-  return <ThemeProvider theme={theme}><CssBaseline />{children}</ThemeProvider>;
+  return (
+    <ThemeModeContext.Provider value={{ mode, toggleMode }}>
+      <ThemeProvider theme={theme}>
+        <CssBaseline />
+        {children}
+      </ThemeProvider>
+    </ThemeModeContext.Provider>
+  );
 }
