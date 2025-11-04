@@ -116,15 +116,15 @@ export default function VisualsPage() {
         (prev || []).map((b) =>
           b.topic === topic
             ? {
-                topic,
-                html: data.html,
-                css: data.css,
-                js: data.js,
-                cached: false,
-                rationale: data.rationale,
-                public: data.public,
-                userPrompt: data.userPrompt,
-              }
+              topic,
+              html: data.html,
+              css: data.css,
+              js: data.js,
+              cached: false,
+              rationale: data.rationale,
+              public: data.public,
+              userPrompt: data.userPrompt,
+            }
             : b
         )
       );
@@ -275,20 +275,8 @@ export default function VisualsPage() {
                   </Typography>
                 </Paper>
               ) : (
-                bundles.map(({ topic, html, css, js, cached, rationale, public: isPublic }) => (
-                  <Paper
-                    key={topic}
-                    elevation={3}
-                    sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, textAlign: "left" }}
-                  >
-                    <Stack
-                      direction={{ xs: "column", sm: "row" }}
-                      alignItems={{ xs: "flex-start", sm: "center" }}
-                      justifyContent="space-between"
-                      spacing={1.5}
-                      sx={{ mb: 1.5 }}
                 bundles.map(
-                  ({ topic, html, css, js, cached, rationale, userPrompt }) => (
+                  ({ topic, html, css, js, cached, rationale, public: isPublic, userPrompt }) => (
                     <Paper
                       key={topic}
                       elevation={3}
@@ -305,40 +293,29 @@ export default function VisualsPage() {
                         spacing={1.5}
                         sx={{ mb: 1.5 }}
                       >
-                        {topic}
-                      </Typography>
-
-                      <Stack direction="row" spacing={1.5} alignItems="center">
-                        {/* Visibility switch */}
-                        <FormControlLabel
-                          control={
-                            <Switch
-                              checked={!!isPublic}
-                              onChange={(_, checked) => togglePublic(topic, checked)}
-                              color="primary"
-                            />
-                          }
-                          label={isPublic ? "Public" : "Private"}
-                          sx={{
-                            ".MuiFormControlLabel-label": {
-                              fontWeight: 600,
-                              color: isPublic ? "primary.main" : "text.secondary",
-                            },
-                          }}
-                        />
-                        <Button
-                          size="small"
-                          variant="outlined"
-                          onClick={() => regenerate(topic)}
-                          sx={{ borderRadius: 2, textTransform: "none" }}
-                        <Typography
-                          variant="h6"
-                          sx={{ fontWeight: 700, lineHeight: 1.2 }}
-                        >
+                        <Typography variant="h6" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
                           {topic}
                         </Typography>
 
-                        <Stack direction="row" spacing={1} alignItems="center">
+                        <Stack direction="row" spacing={1.5} alignItems="center">
+                          {/* Visibility switch */}
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={!!isPublic}
+                                onChange={(_, checked) => togglePublic(topic, checked)}
+                                color="primary"
+                              />
+                            }
+                            label={isPublic ? "Public" : "Private"}
+                            sx={{
+                              ".MuiFormControlLabel-label": {
+                                fontWeight: 600,
+                                color: isPublic ? "primary.main" : "text.secondary",
+                              },
+                            }}
+                          />
+
                           <Button
                             size="small"
                             variant="outlined"
@@ -347,6 +324,7 @@ export default function VisualsPage() {
                           >
                             Regenerate
                           </Button>
+
                           <Button
                             size="small"
                             variant="outlined"
@@ -377,9 +355,7 @@ export default function VisualsPage() {
                                 multiline
                                 minRows={3}
                                 value={currentEditText}
-                                onChange={(e) =>
-                                  setCurrentEditText(e.target.value)
-                                }
+                                onChange={(e) => setCurrentEditText(e.target.value)}
                                 variant="outlined"
                                 sx={{ mb: 1 }}
                               />
@@ -418,6 +394,7 @@ export default function VisualsPage() {
                 )
               )}
             </Stack>
+
           </Stack>
         </Container>
       </Box>
