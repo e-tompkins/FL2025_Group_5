@@ -9,6 +9,7 @@ type VisualItem = {
   modelUsed?: string | null;
   createdAt: string | Date;
   public?: boolean;
+  tags?: string[]; // <-- add tags
 };
 
 export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
@@ -113,7 +114,12 @@ export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
                 onClick={() =>
                   window.open(
                     `/visuals?topics=${encodeURIComponent(
-                      btoa(JSON.stringify([v.topic]))
+                      btoa(
+                        JSON.stringify({
+                          selected: [v.topic],
+                          all: v.tags ?? [v.topic],
+                        })
+                      )
                     )}`,
                     "_blank"
                   )
@@ -139,6 +145,36 @@ export default function VisualList({ visuals }: { visuals: VisualItem[] }) {
               dangerouslySetInnerHTML={{ __html: v.html }}
             />
           </section>
+
+          {/* Tags area */}
+          <div
+            style={{
+              marginTop: 12,
+              display: "flex",
+              gap: 8,
+              flexWrap: "wrap",
+            }}
+          >
+            {(v.tags ?? []).map((t) => (
+              <button
+                key={t}
+                onClick={() => {
+                  // navigate to visuals filtered by tag
+                  window.location.href = `/visuals?tag=${encodeURIComponent(t)}`;
+                }}
+                style={{
+                  border: "1px solid #e0e0e0",
+                  background: "#fff",
+                  padding: "4px 8px",
+                  borderRadius: 16,
+                  fontSize: 12,
+                  cursor: "pointer",
+                }}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
         </article>
       ))}
     </div>

@@ -52,15 +52,17 @@ export default function TopicsPage() {
       return;
     }
 
-    // Option A: go straight to your /visuals page with selected topics:
+    const payload = {
+      selected, // topics user chose
+      all: topics, // full list returned from PDF
+    };
+
     const encoded = encodeURIComponent(
       typeof window !== "undefined"
-        ? btoa(JSON.stringify(selected))
-        : Buffer.from(JSON.stringify(selected)).toString("base64")
+        ? btoa(JSON.stringify(payload))
+        : Buffer.from(JSON.stringify(payload)).toString("base64")
     );
     router.push(`/visuals?topics=${encoded}`);
-
-
   };
 
   return (

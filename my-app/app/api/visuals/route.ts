@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import OpenAI from "openai";
 import { prisma } from "@/lib/prisma";
-import { getServerSession } from "next-auth";
-import { authOption } from "@/app/api/auth/[...nextauth]/route"; // <- use options file
+import { getServerSession } from "next-auth/next";
+import { authOption } from "@/app/api/auth/[...nextauth]/route";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -27,42 +27,69 @@ export async function GET(req: NextRequest) {
   try {
     const url = new URL(req.url);
     const topic = url.searchParams.get("topic") ?? "";
+    const tagParam = url.searchParams.get("tag");
 
     const user = await prisma.user.findUnique({
       where: { email },
       select: { id: true },
     });
-    if (!user)
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     if (topic) {
-      const v = await prisma.visual.findUnique({
-        where: { userId_topic: { userId: user.id, topic } },
-        select: { topic: true, html: true, css: true, js: true, public: true, updatedAt: true },
+      const v = await prisma.visual.findFirst({
+        where: { userId: user.id, topic },
+        orderBy: { createdAt: "desc" },
         select: {
           topic: true,
           html: true,
           css: true,
           js: true,
           updatedAt: true,
+          id: true,
         },
       });
       if (!v) return NextResponse.json({ error: "Not found" }, { status: 404 });
       return NextResponse.json({ ...v, css: v.css ?? "" });
     }
 
-    const list = await prisma.visual.findMany({
-      where: { userId: user.id },
-      orderBy: { updatedAt: "desc" },
-      select: { topic: true, public: true, updatedAt: true,},
-    });
+    let list;
+    if (tagParam) {
+      // parameterized raw query: find rows where JSON array 'tags' contains the value
+      list = await prisma.$queryRaw<
+        Array<{
+          id: string;
+          topic: string;
+          html: string;
+          css: string | null;
+          js: string;
+          tags: any;
+          public: boolean;
+          updatedAt: Date;
+        }>
+      >`SELECT id, topic, html, css, js, tags, public, updatedAt
+        FROM Visual
+        WHERE tags IS NOT NULL AND JSON_CONTAINS(tags, JSON_ARRAY(${tagParam}))
+        ORDER BY updatedAt DESC`;
+    } else {
+      list = await prisma.visual.findMany({
+        orderBy: { updatedAt: "desc" },
+        select: {
+          id: true,
+          topic: true,
+          html: true,
+          css: true,
+          js: true,
+          tags: true,
+          public: true,
+          updatedAt: true,
+        },
+      });
+    }
+
     return NextResponse.json({ items: list });
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json(
-      { error: "Failed to fetch visuals", details: e.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch visuals", details: e.message }, { status: 500 });
   }
 }
 
@@ -73,19 +100,36 @@ export async function PATCH(req: NextRequest) {
   const email = session.user.email;
 
   try {
-    const { topic, public: isPublic } = await req.json();
-    if (!topic || typeof isPublic !== "boolean") {
-      return NextResponse.json({ error: "Provide { topic, public:boolean }" }, { status: 400 });
+    const { id, topic, public: isPublic } = await req.json();
+    if (typeof isPublic !== "boolean") {
+      return NextResponse.json({ error: "Provide { id|topic, public:boolean }" }, { status: 400 });
     }
 
     const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
     if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-    const updated = await prisma.visual.update({
-      where: { userId_topic: { userId: user.id, topic } },
-      data: { public: isPublic },
-      select: { topic: true, public: true },
-    });
+    let updated;
+    if (id) {
+      updated = await prisma.visual.update({
+        where: { id },
+        data: { public: isPublic },
+        select: { id: true, topic: true, public: true },
+      });
+    } else if (topic) {
+      const found = await prisma.visual.findFirst({
+        where: { userId: user.id, topic },
+        orderBy: { updatedAt: "desc" },
+        select: { id: true },
+      });
+      if (!found) return NextResponse.json({ error: "Visual not found" }, { status: 404 });
+      updated = await prisma.visual.update({
+        where: { id: found.id },
+        data: { public: isPublic },
+        select: { id: true, topic: true, public: true },
+      });
+    } else {
+      return NextResponse.json({ error: "Missing id or topic" }, { status: 400 });
+    }
 
     return NextResponse.json(updated);
   } catch (e: any) {
@@ -93,7 +137,6 @@ export async function PATCH(req: NextRequest) {
     return NextResponse.json({ error: "Failed to update visibility", details: e.message }, { status: 500 });
   }
 }
-
 
 // ----------------------------- POST -----------------------------
 export async function POST(req: NextRequest) {
@@ -104,12 +147,13 @@ export async function POST(req: NextRequest) {
   const email = session.user.email;
 
   try {
-    const { topic, forceRegenerate, editPrompt = "" } = await req.json();
+    const { topic, forceRegenerate, editPrompt = "", relatedTopics = [], allTopics = [], tags = [] } = await req.json();
+
     if (!topic || typeof topic !== "string" || topic.trim().length < 2) {
       return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
     }
 
-    // Create/read user ID (race-safe: try create, fallback to read)
+    // Create/read user ID (race-safe)
     let userId: string;
     try {
       const u = await prisma.user.upsert({
@@ -120,17 +164,15 @@ export async function POST(req: NextRequest) {
       });
       userId = u.id;
     } catch (e: any) {
-      const u = await prisma.user.findUnique({
-        where: { email },
-        select: { id: true },
-      });
+      const u = await prisma.user.findUnique({ where: { email }, select: { id: true } });
       if (!u) throw e;
       userId = u.id;
     }
 
     if (!forceRegenerate) {
-      const existing = await prisma.visual.findUnique({
-        where: { userId_topic: { userId, topic } },
+      const existing = await prisma.visual.findFirst({
+        where: { userId, topic },
+        orderBy: { createdAt: "desc" },
         select: { html: true, css: true, js: true },
       });
       if (existing) {
@@ -203,17 +245,8 @@ HARD REQUIREMENTS
     }
 
     if (!payload?.html || !payload?.js) {
-      return NextResponse.json(
-        { error: "Model returned invalid code" },
-        { status: 502 }
-      );
+      return NextResponse.json({ error: "Model returned invalid code" }, { status: 502 });
     }
-    // if (!/id=\\"viz\\"/.test(payload.html) || !/id=\\"chart\\"/.test(payload.html)) {
-    //   return NextResponse.json({ error: "HTML must include #viz and an <svg id=\"chart\">" }, { status: 502 });
-    // }
-    // if (!/\banime\./.test(payload.js)) {
-    //   return NextResponse.json({ error: "JS must use anime.*" }, { status: 502 });
-    // }
 
     const stripScripts = (s: string) =>
       s.replace(/<script[^>]*>/gi, "").replace(/<\/script>/gi, "");
@@ -224,23 +257,26 @@ HARD REQUIREMENTS
       js: payload.js,
     };
 
-    const saved = await prisma.visual.upsert({
-      where: { userId_topic: { userId, topic } },
-      update: {
-        html: clean.html,
-        css: clean.css || null,
-        js: clean.js,
-        modelUsed: "gpt-4o-mini",
-      },
-      create: {
+    // build deduped tags array: include topic + provided/related/all topics
+    const providedTags = Array.isArray(tags) ? tags : [];
+    const related = Array.isArray(relatedTopics) ? relatedTopics : [];
+    const all = Array.isArray(allTopics) ? allTopics : [];
+    const tagsSet = new Set<string>([topic, ...providedTags, ...related, ...all].filter(Boolean));
+    const tagsArray = Array.from(tagsSet);
+
+    const saved = await prisma.visual.create({
+      data: {
         topic,
         html: clean.html,
         css: clean.css || null,
         js: clean.js,
         modelUsed: "gpt-4o-mini",
         user: { connect: { id: userId } },
+        rationale: clean.rationale || null,
+        public: true,
+        tags: tagsArray,
       },
-      select: { html: true, css: true, js: true, public: true},
+      select: { id: true, html: true, css: true, js: true, public: true, tags: true },
     });
 
     return NextResponse.json({
@@ -250,13 +286,12 @@ HARD REQUIREMENTS
       js: saved.js,
       public: saved.public,
       cached: false,
-      userPrompt: userPrompt,
+      userPrompt,
+      tags: saved.tags ?? [],
+      id: saved.id,
     });
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json(
-      { error: "Failed to generate visual", details: e.message },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to generate visual", details: e.message }, { status: 500 });
   }
 }
