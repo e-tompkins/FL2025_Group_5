@@ -28,7 +28,8 @@ model Visual {
   userId    String
   rationale String?  @db.MediumText
   public    Boolean  @default(true)
+  tags      Json?
   user      User     @relation(fields: [userId], references: [id])
 
-  @@unique([userId, topic])
+  @@index([userId], map: "Visual_userId_fkey")
 }

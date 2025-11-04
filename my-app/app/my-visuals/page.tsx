@@ -35,11 +35,12 @@ export default async function MyVisualsPage() {
       html: true,
       modelUsed: true,
       createdAt: true,
-      public: true, // <-- include visibility
+      public: true,
+      tags: true, // <-- include tags (Json)
     },
   });
 
-  // Serialize for client (Dates -> string)
+  // Serialize for client (Dates -> string, tags -> string[])
   const items = visuals.map(v => ({
     id: v.id,
     topic: v.topic,
@@ -47,6 +48,7 @@ export default async function MyVisualsPage() {
     modelUsed: v.modelUsed ?? "",
     createdAt: v.createdAt.toISOString(),
     public: !!v.public,
+    tags: Array.isArray(v.tags) ? v.tags : (v.tags ? JSON.parse(String(v.tags)) : []), // <-- normalize
   }));
 
   return (
