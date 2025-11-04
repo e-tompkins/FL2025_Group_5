@@ -1,5 +1,5 @@
 // app/visuals/page.tsx
-"use client";
+""use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
@@ -20,7 +20,7 @@ import AppBar from "../components/AppBar";
 import VisualRunner from "../components/VisualRunner";
 
 type CodeBundle = {
-  id?: string;                 // <-- add optional id
+  id?: string;
   topic: string;
   html: string;
   css?: string;
@@ -29,7 +29,7 @@ type CodeBundle = {
   rationale?: string;
   public?: boolean;
   userPrompt?: string;
-  tags?: string[]; // selected topic + related concepts
+  tags?: string[];
 };
 
 export default function VisualsPage() {
@@ -42,7 +42,6 @@ export default function VisualsPage() {
       const raw = sp.get("topics");
       if (!raw) return { selectedTopics: [], allTopics: [] };
       const decoded = JSON.parse(atob(decodeURIComponent(raw)));
-      // Backward-compat: if decoded is array, treat it as selectedTopics with no allTopics
       if (Array.isArray(decoded)) {
         return { selectedTopics: decoded.slice(0, 10), allTopics: decoded.slice(0, 10) };
       }
@@ -67,18 +66,16 @@ export default function VisualsPage() {
     let cancelled = false;
     (async () => {
       try {
-        // If tag param is present -> fetch visuals for that tag
+        // Tag filter branch
         if (tagParam) {
           setBundles(null);
           const res = await fetch(`/api/visuals?tag=${encodeURIComponent(tagParam)}`);
           const data = await res.json();
           if (!res.ok) throw new Error(data?.error || "API error");
 
-          // Accept either data.visuals or data.items (fallback) and normalize to CodeBundle[]
           const raw = data.visuals ?? data.items ?? [];
-          // In the tagParam branch: normalize and attach an id (use index fallback)
           const visuals = (raw || []).map((v: any, i: number) => ({
-            id: v.id ?? `${v.topic}-${i}-${Date.now()}`,   // <-- ensure unique id
+            id: v.id ?? `${v.topic}-${i}-${Date.now()}`,
             topic: v.topic,
             html: v.html ?? "",
             css: v.css ?? "",
@@ -93,7 +90,7 @@ export default function VisualsPage() {
           return;
         }
 
-        // Otherwise fetch by topics (existing flow)
+        // Selected topics flow
         if (!selectedTopics.length) {
           setBundles([]);
           return;
@@ -101,19 +98,18 @@ export default function VisualsPage() {
 
         const results = await Promise.all(
           selectedTopics.map(async (topic: string, idx: number) => {
-            // First try to fetch an existing saved visual for this user+topic
+            // Try to fetch an existing saved visual first
             try {
               const g = await fetch(`/api/visuals?topic=${encodeURIComponent(topic)}`);
               if (g.ok) {
                 const gv = await g.json();
-                // normalize tags that may come back as JSON/string
                 const tags = Array.isArray(gv.tags)
                   ? gv.tags
                   : gv.tags && typeof gv.tags === "string"
-                    ? JSON.parse(gv.tags)
-                    : Array.isArray(allTopics)
-                      ? allTopics.filter((t) => t !== topic)
-                      : [topic];
+                  ? JSON.parse(gv.tags)
+                  : Array.isArray(allTopics)
+                  ? allTopics.filter((t) => t !== topic)
+                  : [topic];
                 return {
                   id: gv.id ?? `${topic}-${idx}-${Date.now()}`,
                   topic,
@@ -127,19 +123,18 @@ export default function VisualsPage() {
                   tags,
                 } as CodeBundle;
               }
-            } catch (e) {
-              // ignore and fall through to generation
+            } catch {
+              // fall through to generation
             }
 
-            // If no existing visual, request generation and include allTopics/tags so server can persist full tag list
+            // Otherwise request generation and include allTopics so server persists tags
             const p = await fetch("/api/visuals", {
               method: "POST",
               headers: { "content-type": "application/json" },
               body: JSON.stringify({
                 topic,
-                // include the full list extracted from the PDF so the server will persist those as tags
                 allTopics,
-                relatedTopics: [], // optional - include if you have related info
+                relatedTopics: [],
               }),
             });
             const data = await p.json();
@@ -148,8 +143,8 @@ export default function VisualsPage() {
             const tagsFromApi = Array.isArray(data.tags)
               ? data.tags
               : Array.isArray(data.relatedTopics)
-                ? data.relatedTopics
-                : [];
+              ? data.relatedTopics
+              : [];
             const otherFromAll = Array.isArray(allTopics) ? allTopics.filter((t) => t !== topic) : [];
             const tagsSet = new Set<string>([topic, ...tagsFromApi, ...otherFromAll]);
             const tags = Array.from(tagsSet);
@@ -176,7 +171,21 @@ export default function VisualsPage() {
     return () => {
       cancelled = true;
     };
-  }, [selectedTopics, tagParam]);
+  }, [selectedTopics, tagParam, allTopics]);
+
+  // Delete handler (accepts id or topic)
+  const handleDelete = async (id?: string, topic?: string) => {
+    try {
+      setBundles((prev) => (prev ?? []).filter((b) => (id ? b.id !== id : b.topic !== topic)));
+      await fetch("/api/visuals/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ id, topic }),
+      });
+    } catch (e: any) {
+      alert(e.message || "Failed to delete");
+    }
+  };
 
   const regenerate = async (topic: string, promptOverride?: string) => {
     try {
@@ -256,7 +265,6 @@ export default function VisualsPage() {
   }
 
   const onClickTag = (tag: string) => {
-    // navigate to /visuals?tag=... which the useEffect will handle
     router.push(`/visuals?tag=${encodeURIComponent(tag)}`);
   };
 
@@ -329,6 +337,10 @@ export default function VisualsPage() {
                         <Button size="small" variant="outlined" onClick={() => edit(userPrompt, topic)}>
                           Edit prompt
                         </Button>
+                        <Button size="small" variant="outlined" onClick={() => handleDelete(id, topic)} sx={{ borderRadius: 2, textTransform: "none" }}>
+                          Delete
+                        </Button>
+                        
                       </Stack>
                     </Stack>
 

@@ -7,6 +7,7 @@
     "@mui/material": "^7.3.4",
     "@mui/material-nextjs": "^7.3.3",
     "express": "^5.1.0",
+    "framer-motion": "^12.23.24",
     "google-auth-library": "^10.3.0",
     "next": "^15.5.4",
     "next-auth": "^4.24.11",
