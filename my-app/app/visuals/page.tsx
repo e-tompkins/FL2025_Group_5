@@ -1,5 +1,5 @@
 // app/visuals/page.tsx
-""use client";
+"use client";
 
 import { useEffect, useMemo, useState } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
