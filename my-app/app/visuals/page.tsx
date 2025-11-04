@@ -34,7 +34,7 @@ export default function VisualsPage() {
   const sp = useSearchParams();
 
   // decode ?topics= (base64 JSON array) passed from /topics
-  const topics = useMemo(() => {
+  const [topics, setTopics] = useState<string[]>(() => {
     try {
       const raw = sp.get("topics");
       if (!raw) return [];
@@ -43,7 +43,7 @@ export default function VisualsPage() {
     } catch {
       return [];
     }
-  }, [sp]);
+  });
 
   const [bundles, setBundles] = useState<CodeBundle[] | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -95,6 +95,19 @@ export default function VisualsPage() {
       cancelled = true;
     };
   }, [topics]);
+
+  const handleDelete = async (topic: string) => {
+    try {
+      setTopics((prev) => prev.filter((t) => t !== topic));
+      const res = await fetch("/api/visuals/delete", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic }),
+      });
+    } catch (e: any) {
+      alert(e.message || "Failed to delete");
+    }
+  };
 
   const regenerate = async (topic: string, promptOverride?: string) => {
     try {
@@ -256,6 +269,17 @@ export default function VisualsPage() {
                 >
                   {onlyTopic}
                 </Typography>
+
+                <Typography
+                  sx={{
+                    color: "text.secondary",
+                    fontSize: { xs: "0.95rem", sm: "1.05rem" },
+                    maxWidth: 720,
+                    mx: "auto",
+                  }}
+                >
+                  This is the text to describe your visual.
+                </Typography>
               </Box>
             )}
 
@@ -297,6 +321,23 @@ export default function VisualsPage() {
                           {topic}
                         </Typography>
 
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => regenerate(topic)}
+                          sx={{ borderRadius: 2, textTransform: "none" }}
+                        >
+                          Regenerate
+                        </Button>
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => handleDelete(topic)}
+                          sx={{ borderRadius: 2, textTransform: "none" }}
+                        >
+                          Delete
+                        </Button>
                         <Stack direction="row" spacing={1.5} alignItems="center">
                           {/* Visibility switch */}
                           <FormControlLabel

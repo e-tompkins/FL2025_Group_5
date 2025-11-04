@@ -250,6 +250,7 @@ HARD REQUIREMENTS
       js: saved.js,
       public: saved.public,
       cached: false,
+      userId: userId
       userPrompt: userPrompt,
     });
   } catch (e: any) {
