@@ -8,8 +8,8 @@ import { prisma } from "@/lib/prisma";
 import AppBar from "../components/AppBar";
 import { Box, Container, Stack, Typography, Paper } from "@mui/material";
 
-// Your existing list renderer
-import VisualList from "./components/VisualList";
+// Client list with public/private toggles
+import MyVisualsListClient from "./components/VisualList";
 
 export const metadata = {
   title: "My Visuals",
@@ -35,8 +35,19 @@ export default async function MyVisualsPage() {
       html: true,
       modelUsed: true,
       createdAt: true,
+      public: true, // <-- include visibility
     },
   });
+
+  // Serialize for client (Dates -> string)
+  const items = visuals.map(v => ({
+    id: v.id,
+    topic: v.topic,
+    html: v.html ?? "",
+    modelUsed: v.modelUsed ?? "",
+    createdAt: v.createdAt.toISOString(),
+    public: !!v.public,
+  }));
 
   return (
     <>
@@ -89,7 +100,7 @@ export default async function MyVisualsPage() {
                   mx: "auto",
                 }}
               >
-                A list of your saved visuals with topic, model used, and the rendered output.
+                A list of your saved visuals. Toggle visibility to share them publicly.
               </Typography>
             </Box>
 
@@ -104,12 +115,12 @@ export default async function MyVisualsPage() {
                 textAlign: "left",
               }}
             >
-              {visuals.length === 0 ? (
+              {items.length === 0 ? (
                 <Typography color="text.secondary">
-                  You haven't saved any visuals yet.
+                  You haven’t saved any visuals yet.
                 </Typography>
               ) : (
-                <VisualList visuals={visuals} />
+                <MyVisualsListClient visuals={items} />
               )}
             </Paper>
           </Stack>

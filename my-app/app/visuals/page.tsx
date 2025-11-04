@@ -11,6 +11,8 @@ import {
   CircularProgress,
   Stack,
   Button,
+  FormControlLabel,
+  Switch,
   Chip,
   TextField,
 } from "@mui/material";
@@ -24,6 +26,7 @@ type CodeBundle = {
   js: string;
   cached?: boolean;
   rationale?: string;
+  public?: boolean; // persisted visibility
   userPrompt?: string;
 };
 
@@ -78,6 +81,7 @@ export default function VisualsPage() {
               js: data.js,
               cached: data.cached,
               rationale: data.rationale,
+              public: data.public,
               userPrompt: data.userPrompt,
             } as CodeBundle;
           })
@@ -118,6 +122,7 @@ export default function VisualsPage() {
                 js: data.js,
                 cached: false,
                 rationale: data.rationale,
+                public: data.public,
                 userPrompt: data.userPrompt,
               }
             : b
@@ -125,6 +130,31 @@ export default function VisualsPage() {
       );
     } catch (e: any) {
       alert(e.message || "Failed to regenerate");
+    }
+  };
+
+  // toggle public/private (optimistic update + PATCH)
+  const togglePublic = async (topic: string, next: boolean) => {
+    // optimistic UI
+    setBundles((prev) =>
+      (prev || []).map((b) => (b.topic === topic ? { ...b, public: next } : b))
+    );
+    try {
+      const res = await fetch("/api/visuals", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ topic, public: next }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data?.error || "Update failed");
+      }
+    } catch (e: any) {
+      // revert on error
+      setBundles((prev) =>
+        (prev || []).map((b) => (b.topic === topic ? { ...b, public: !next } : b))
+      );
+      alert(e.message || "Failed to update visibility");
     }
   };
 
@@ -208,7 +238,7 @@ export default function VisualsPage() {
             alignItems="center"
             textAlign="center"
           >
-            {/* Hero */}
+            {/* Hero (only when a single topic) */}
             {onlyTopic && (
               <Box>
                 <Typography
@@ -228,6 +258,7 @@ export default function VisualsPage() {
                 </Typography>
               </Box>
             )}
+
             {/* Visual cards (no Grid) */}
             <Stack spacing={3} sx={{ width: "100%", maxWidth: 720 }}>
               {bundles.length === 0 ? (
@@ -244,6 +275,18 @@ export default function VisualsPage() {
                   </Typography>
                 </Paper>
               ) : (
+                bundles.map(({ topic, html, css, js, cached, rationale, public: isPublic }) => (
+                  <Paper
+                    key={topic}
+                    elevation={3}
+                    sx={{ p: { xs: 2, sm: 3 }, borderRadius: 3, textAlign: "left" }}
+                  >
+                    <Stack
+                      direction={{ xs: "column", sm: "row" }}
+                      alignItems={{ xs: "flex-start", sm: "center" }}
+                      justifyContent="space-between"
+                      spacing={1.5}
+                      sx={{ mb: 1.5 }}
                 bundles.map(
                   ({ topic, html, css, js, cached, rationale, userPrompt }) => (
                     <Paper
@@ -262,6 +305,32 @@ export default function VisualsPage() {
                         spacing={1.5}
                         sx={{ mb: 1.5 }}
                       >
+                        {topic}
+                      </Typography>
+
+                      <Stack direction="row" spacing={1.5} alignItems="center">
+                        {/* Visibility switch */}
+                        <FormControlLabel
+                          control={
+                            <Switch
+                              checked={!!isPublic}
+                              onChange={(_, checked) => togglePublic(topic, checked)}
+                              color="primary"
+                            />
+                          }
+                          label={isPublic ? "Public" : "Private"}
+                          sx={{
+                            ".MuiFormControlLabel-label": {
+                              fontWeight: 600,
+                              color: isPublic ? "primary.main" : "text.secondary",
+                            },
+                          }}
+                        />
+                        <Button
+                          size="small"
+                          variant="outlined"
+                          onClick={() => regenerate(topic)}
+                          sx={{ borderRadius: 2, textTransform: "none" }}
                         <Typography
                           variant="h6"
                           sx={{ fontWeight: 700, lineHeight: 1.2 }}
