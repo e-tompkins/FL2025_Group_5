@@ -1,0 +1,14 @@
+---
+spec:
+  template:
+    spec:
+      containers:
+        - image: project-draft:release
+          imagePullPolicy: Never
+          name: project-draft
+          command: ["./script/run"]
+          ports:
+            - containerPort: 3000
+          env:
+            - name: APP_APPLICATION__HOST
+              value: 0.0.0.0
