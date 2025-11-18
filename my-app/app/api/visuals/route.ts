@@ -41,28 +41,27 @@ export async function GET(req: NextRequest) {
 
     // ---------- Case 1: Get specific visual by topic ----------
     if (topic) {
+      // Load the most recent visual (no select) so we can check ownership.
       const v = await prisma.visual.findFirst({
         where: {
           topic,
-          OR: [
-            { public: true },
-            { userId: user.id },
-          ],
+          OR: [{ public: true }, { userId: user.id }],
         },
         orderBy: { createdAt: "desc" },
-        select: {
-          id: true,
-          topic: true,
-          html: true,
-          css: true,
-          js: true,
-          public: true,
-          tags: true,
-          updatedAt: true,
-        },
       });
+
       if (!v) return NextResponse.json({ error: "Not found" }, { status: 404 });
-      return NextResponse.json(v);
+
+      // If the found visual belongs to the requesting user, force generation
+      // by returning 404 — the client will then POST to create a fresh visual
+      // which preserves the `userPrompt` flow.
+      if (v.userId === user.id) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
+
+      // Return a public-safe payload (strip userId)
+      const { userId: _u, ...publicPayload } = v as any;
+      return NextResponse.json(publicPayload);
     }
 
     // ---------- Case 2: My Visuals ----------
@@ -88,10 +87,7 @@ export async function GET(req: NextRequest) {
     if (tagParam) {
       const visualsByTag = await prisma.visual.findMany({
         where: {
-          OR: [
-            { public: true },
-            { userId: user.id },
-          ],
+          OR: [{ public: true }, { userId: user.id }],
           tags: { array_contains: [tagParam] },
         },
         orderBy: { updatedAt: "desc" },
@@ -135,21 +131,28 @@ export async function GET(req: NextRequest) {
   }
 }
 
-
 // ----------------------------- PATCH (toggle public) -----------------------------
 export async function PATCH(req: NextRequest) {
   const session = await getServerSession(authOption);
-  if (!session?.user?.email) return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+  if (!session?.user?.email)
+    return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
   const email = session.user.email;
 
   try {
     const { id, topic, public: isPublic } = await req.json();
     if (typeof isPublic !== "boolean") {
-      return NextResponse.json({ error: "Provide { id|topic, public:boolean }" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Provide { id|topic, public:boolean }" },
+        { status: 400 }
+      );
     }
 
-    const user = await prisma.user.findUnique({ where: { email }, select: { id: true } });
-    if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (!user)
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     let updated;
     if (id) {
@@ -164,20 +167,30 @@ export async function PATCH(req: NextRequest) {
         orderBy: { updatedAt: "desc" },
         select: { id: true },
       });
-      if (!found) return NextResponse.json({ error: "Visual not found" }, { status: 404 });
+      if (!found)
+        return NextResponse.json(
+          { error: "Visual not found" },
+          { status: 404 }
+        );
       updated = await prisma.visual.update({
         where: { id: found.id },
         data: { public: isPublic },
         select: { id: true, topic: true, public: true },
       });
     } else {
-      return NextResponse.json({ error: "Missing id or topic" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Missing id or topic" },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(updated);
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to update visibility", details: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to update visibility", details: e.message },
+      { status: 500 }
+    );
   }
 }
 
@@ -190,7 +203,14 @@ export async function POST(req: NextRequest) {
   const email = session.user.email;
 
   try {
-    const { topic, forceRegenerate, editPrompt = "", relatedTopics = [], allTopics = [], tags = [] } = await req.json();
+    const {
+      topic,
+      forceRegenerate,
+      editPrompt = "",
+      relatedTopics = [],
+      allTopics = [],
+      tags = [],
+    } = await req.json();
 
     if (!topic || typeof topic !== "string" || topic.trim().length < 2) {
       return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
@@ -207,27 +227,20 @@ export async function POST(req: NextRequest) {
       });
       userId = u.id;
     } catch (e: any) {
-      const u = await prisma.user.findUnique({ where: { email }, select: { id: true } });
+      const u = await prisma.user.findUnique({
+        where: { email },
+        select: { id: true },
+      });
       if (!u) throw e;
       userId = u.id;
     }
 
-    if (!forceRegenerate) {
-      const existing = await prisma.visual.findFirst({
-        where: { userId, topic },
-        orderBy: { createdAt: "desc" },
-        select: { html: true, css: true, js: true },
-      });
-      if (existing) {
-        return NextResponse.json({
-          topic,
-          html: existing.html,
-          css: existing.css ?? "",
-          js: existing.js,
-          cached: true,
-        });
-      }
-    }
+    // Allow duplicate topics: always generate a new visualization even if one exists.
+    // Previously we returned a cached result here when a visual with the same
+    // topic already existed for the user. That caused the prompt/context to be
+    // lost when navigating from the page to this route with the same topic.
+    // To ensure a fresh generation that preserves prompt flow, do not return
+    // the cached visual — proceed to call the model and create a new record.
 
     // Prompt (general, no topic hints, but requires rationale)
     const systemPrompt = `
@@ -288,7 +301,10 @@ HARD REQUIREMENTS
     }
 
     if (!payload?.html || !payload?.js) {
-      return NextResponse.json({ error: "Model returned invalid code" }, { status: 502 });
+      return NextResponse.json(
+        { error: "Model returned invalid code" },
+        { status: 502 }
+      );
     }
 
     const stripScripts = (s: string) =>
@@ -304,7 +320,9 @@ HARD REQUIREMENTS
     const providedTags = Array.isArray(tags) ? tags : [];
     const related = Array.isArray(relatedTopics) ? relatedTopics : [];
     const all = Array.isArray(allTopics) ? allTopics : [];
-    const tagsSet = new Set<string>([topic, ...providedTags, ...related, ...all].filter(Boolean));
+    const tagsSet = new Set<string>(
+      [topic, ...providedTags, ...related, ...all].filter(Boolean)
+    );
     const tagsArray = Array.from(tagsSet);
 
     const saved = await prisma.visual.create({
@@ -319,7 +337,14 @@ HARD REQUIREMENTS
         public: true,
         tags: tagsArray,
       },
-      select: { id: true, html: true, css: true, js: true, public: true, tags: true },
+      select: {
+        id: true,
+        html: true,
+        css: true,
+        js: true,
+        public: true,
+        tags: true,
+      },
     });
 
     return NextResponse.json({
@@ -335,6 +360,9 @@ HARD REQUIREMENTS
     });
   } catch (e: any) {
     console.error(e);
-    return NextResponse.json({ error: "Failed to generate visual", details: e.message }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to generate visual", details: e.message },
+      { status: 500 }
+    );
   }
 }
