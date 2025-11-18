@@ -30,6 +30,4 @@ model Visual {
   public    Boolean  @default(true)
   tags      Json?
   user      User     @relation(fields: [userId], references: [id])
-
-  @@unique([userId, topic])
 }
