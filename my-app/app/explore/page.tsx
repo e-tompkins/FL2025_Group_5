@@ -4,7 +4,9 @@ import AppBar from "../components/AppBar";
 import { Box, Container, Stack, Typography, Paper } from "@mui/material";
 import PublicVisualList from "./components/PublicVisualList";
 
-export const metadata = {
+import { Metadata } from "next"; // Add this import
+
+export const metadata: Metadata = { // Annotate with Metadata type
   title: "Explore Visuals",
   description: "Discover public visuals shared by others",
 };

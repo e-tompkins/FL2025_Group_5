@@ -11,7 +11,9 @@ import { Box, Container, Stack, Typography, Paper } from "@mui/material";
 // Client list with public/private toggles
 import MyVisualsListClient from "./components/VisualList";
 
-export const metadata = {
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
   title: "My Visuals",
   description: "A list of your saved visuals",
 };
