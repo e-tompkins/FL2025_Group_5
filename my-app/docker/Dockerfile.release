@@ -5,7 +5,10 @@ WORKDIR /app
 RUN apt-get update
 
 COPY package*.json ./
-RUN npm install
+# allow legacy peer deps in CI/build to avoid ERESOLVE failures inside container
+# (matches common CI workaround; safe for dev/prod builds here)
+RUN npm install --legacy-peer-deps
 COPY . . 
+RUN rm -f /app/.env || true
 RUN npx prisma generate
 CMD ["npm", "run", "dev"]
