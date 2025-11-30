@@ -5,3 +5,4 @@ node_modules
 /generated/prisma
 /my-app/uploads
 /k8s
+.DS_Store
