@@ -20,11 +20,111 @@ spec:
           name: project-draft-db
           ports:
             - containerPort: 3000
+            - containerPort: 3306
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: password
+              value: prisma_password
+            - name: MYSQL_DATABASE
+              value: FL2025_SWE
+            - name: MYSQL_USER
+              value: prisma
+            - name: MYSQL_PASSWORD
+              value: prisma_password
           livenessProbe:
             tcpSocket:
               port: 3306
             initialDelaySeconds: 30
             periodSeconds: 10
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-draft-db
+spec:
+  selector:
+    app: project-draft-db
+  ports:
+    - port: 3306
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: project-draft
+  labels:
+    app: project-draft
+spec:
+  selector:
+    matchLabels:
+      app: project-draft
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: project-draft
+    spec:
+      containers:
+        - name: project-draft
+          image: project-draft:release-5  # must match the image:tag you built & kind-loaded
+          imagePullPolicy: IfNotPresent
+          # Use the container image's default CMD/entrypoint. Removed an invalid override that caused
+          # CrashLoopBackOff when the referenced ./script/run file didn't exist in the image.
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_URL
+              value: mysql://prisma:prisma_password@project-draft-db:3306/FL2025_SWE
+            - name: NEXTAUTH_URL
+              value: "http://localhost:8080"
+
+          envFrom:
+            - secretRef:
+                name: project-draft-secret
+
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: project-draft
+spec:
+  type: LoadBalancer
+  selector:
+    app: project-draft
+  ports:
+    - port: 3000
+
+# Ingress
+---
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: project-draft-ingress
+  annotations:
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+spec:
+  ingressClassName: nginx
+  rules:
+    - http:
+        paths:
+          # Frontend at root
+          - pathType: Prefix
+            path: /
+            backend:
+              service:
+                name: project-draft
+                port:
+                  number: 3000
+          # Backend at /api...
+          - pathType: ImplementationSpecific
+            path: /api(/|$)(.*)
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 8000
+

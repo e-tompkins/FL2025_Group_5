@@ -307,20 +307,46 @@ HARD REQUIREMENTS
     const tagsSet = new Set<string>([topic, ...providedTags, ...related, ...all].filter(Boolean));
     const tagsArray = Array.from(tagsSet);
 
-    const saved = await prisma.visual.create({
-      data: {
-        topic,
-        html: clean.html,
-        css: clean.css || null,
-        js: clean.js,
-        modelUsed: "gpt-4o-mini",
-        user: { connect: { id: userId } },
-        rationale: clean.rationale || null,
-        public: true,
-        tags: tagsArray,
-      },
-      select: { id: true, html: true, css: true, js: true, public: true, tags: true },
-    });
+    let saved;
+    try {
+      saved = await prisma.visual.create({
+        data: {
+          topic,
+          html: clean.html,
+          css: clean.css || null,
+          js: clean.js,
+          modelUsed: "gpt-4o-mini",
+          user: { connect: { id: userId } },
+          rationale: clean.rationale || null,
+          public: true,
+          tags: tagsArray,
+        },
+        select: { id: true, html: true, css: true, js: true, public: true, tags: true },
+      });
+    } catch (err: any) {
+      // Handle unique constraint race: return existing visual instead of 500
+      if (err?.code === 'P2002') {
+        const existing = await prisma.visual.findFirst({
+          where: { userId, topic },
+          orderBy: { createdAt: 'desc' },
+          select: { id: true, html: true, css: true, js: true, public: true, tags: true },
+        });
+        if (existing) {
+          return NextResponse.json({
+            topic,
+            html: existing.html,
+            css: existing.css ?? "",
+            js: existing.js,
+            public: existing.public,
+            cached: false,
+            userPrompt,
+            tags: existing.tags ?? [],
+            id: existing.id,
+          });
+        }
+      }
+      throw err;
+    }
 
     return NextResponse.json({
       topic,

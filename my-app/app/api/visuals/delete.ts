@@ -29,14 +29,15 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    await prisma.visual.delete({
-      where: {
-        userId_topic: {
-          userId: user.id,
-          topic,
-        },
-      },
+    // find the most recent visual for this user & topic, then delete by id
+    const found = await prisma.visual.findFirst({
+      where: { userId: user.id, topic },
+      orderBy: { createdAt: "desc" },
+      select: { id: true },
     });
+    if (!found) return NextResponse.json({ error: "Visual not found" }, { status: 404 });
+
+    await prisma.visual.delete({ where: { id: found.id } });
 
     return NextResponse.json(
       {
