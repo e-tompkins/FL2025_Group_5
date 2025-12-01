@@ -66,17 +66,22 @@ spec:
     spec:
       containers:
         - name: project-draft
-          image: project-draft:release-1   # must match the image:tag you built & kind-loaded
-          imagePullPolicy: Never
-          command: ["./script/run"]
+          image: project-draft:release-5  # must match the image:tag you built & kind-loaded
+          imagePullPolicy: IfNotPresent
+          # Use the container image's default CMD/entrypoint. Removed an invalid override that caused
+          # CrashLoopBackOff when the referenced ./script/run file didn't exist in the image.
           ports:
             - containerPort: 3000
           env:
-            # - name: APP_APPLICATION__HOST
-            #   value: "0.0.0.0"
             - name: DATABASE_URL
               value: mysql://prisma:prisma_password@project-draft-db:3306/FL2025_SWE
-              #value: mysql://prisma:prisma_password@project-draft-db:3306/FL2025_SWE
+            - name: NEXTAUTH_URL
+              value: "http://localhost:8080"
+
+          envFrom:
+            - secretRef:
+                name: project-draft-secret
+
 
 
 ---

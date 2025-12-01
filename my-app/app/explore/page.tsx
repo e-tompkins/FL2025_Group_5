@@ -1,6 +1,8 @@
 // app/explore/page.tsx
 import { prisma } from "@/lib/prisma";
 import AppBar from "../components/AppBar";
+export const dynamic = 'force-dynamic';
+
 import { Box, Container, Stack, Typography, Paper } from "@mui/material";
 import PublicVisualList from "./components/PublicVisualList";
 

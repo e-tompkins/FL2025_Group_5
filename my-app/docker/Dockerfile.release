@@ -1,3 +1,48 @@
+### Multi-stage Dockerfile for Next.js production with Prisma
+### Builder: install deps, generate Prisma client, build Next
+FROM node:20-bullseye AS builder
+WORKDIR /app
+
+# Copy package manifests and install (use ci for reproducible installs)
+COPY package.json package-lock.json* ./
+RUN npm ci --legacy-peer-deps
+
+# Copy app sources
+COPY . .
+
+# Ensure no local .env baked into the image
+RUN rm -f .env || true
+
+# Generate Prisma client and build the Next app
+RUN npx prisma generate
+RUN npm run build
+
+# Optional: create a standalone output (if using `next build && next export`/standalone)
+# Next.js 13+ also supports `next build` standalone output in `.next/standalone`
+
+### Runner: minimal image with only runtime files
+FROM node:20-slim AS runner
+WORKDIR /app
+
+# Production env
+ENV NODE_ENV=production
+
+# Copy only necessary files from builder
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/prisma ./prisma
+# Copy standalone build if Next produced it (ignore failure if not present)
+COPY --from=builder /app/.next/standalone /app/.next/standalone
+
+# Remove any baked .env just in case
+RUN rm -f .env || true
+
+EXPOSE 3000
+
+# If Next produced a standalone app, prefer its start script
+CMD ["npm","run","start"]
 FROM docker.io/node:latest
 
 WORKDIR /app
