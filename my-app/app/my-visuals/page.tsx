@@ -6,6 +6,8 @@ import { prisma } from "@/lib/prisma";
 
 // UI (server-safe MUI usage)
 import AppBar from "../components/AppBar";
+export const dynamic = 'force-dynamic';
+
 import { Box, Container, Stack, Typography, Paper } from "@mui/material";
 
 // Client list with public/private toggles

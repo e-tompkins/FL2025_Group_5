@@ -3,8 +3,10 @@ services:
     image: docker.io/mysql:latest
     container_name: db
     environment:
-      - MYSQL_ROOT_PASSWORD=Impact411!
-      - MYSQL_DATABASE=visualearn
+      - MYSQL_ROOT_PASSWORD=prisma_password
+      - MYSQL_DATABASE=FL2025_SWE
+      - MYSQL_USER=prisma
+      - MYSQL_PASSWORD=prisma_password
   app:
     env_file: ".env"
     environment:
