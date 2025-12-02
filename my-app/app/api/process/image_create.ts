@@ -14,12 +14,6 @@ export default async function imageCreate(words: string[]) {
     model: "gpt-4-turbo",
     input: prompt,
   });
-  
-  const image = await client.images.generate({
-  model: "dall-e-2",
-  prompt: `A high-quality, technical educational diagram. It can be simple, like a line diagram. Prioritize clarity and educational value. Use a clean, minimalistic style with clear labels and annotations. Avoid unnecessary details or artistic elements that do not contribute to understanding the concept. Use the following list of words to determine the subject of the visualization ${list}`,
-  size: "1024x1024",
-});
 
   const descText = (description && (description as any).output_text) || "";
   const animeJsCode = (animeCode && (animeCode as any).output_text) || "";

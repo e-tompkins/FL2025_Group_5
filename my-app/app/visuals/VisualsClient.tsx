@@ -297,9 +297,6 @@ export default function VisualsClient() {
                 <Typography component="h1" sx={{ fontWeight: 700, fontSize: { xs: "clamp(22px,6vw,34px)", sm: "clamp(26px,5vw,40px)", md: "48px" }, mb: 1 }}>
                   {onlyTopic}
                 </Typography>
-                <Typography sx={{ color: "text.secondary", fontSize: { xs: "0.95rem", sm: "1.05rem" }, maxWidth: 720, mx: "auto" }}>
-                  This is the text to describe your visual.
-                </Typography>
               </Box>
             )}
 
