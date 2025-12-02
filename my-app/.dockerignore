@@ -1,0 +1,14 @@
+node_modules
+.next
+dist
+uploads
+.env
+*.log
+.git
+.github
+Dockerfile*
+docker-compose*.yml
+**/node_modules
+npm-debug.log
+README.md
+*.tgz

@@ -4,3 +4,6 @@ node_modules
 .env.local
 /generated/prisma
 /my-app/uploads
+.DS_Store
+k8s/secret-env.yaml
+
