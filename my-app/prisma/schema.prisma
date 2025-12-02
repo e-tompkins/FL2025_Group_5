@@ -27,6 +27,7 @@ model Visual {
   modelUsed String?
   userId    String
   rationale String?  @db.MediumText
+  userPrompt String?  @db.MediumText
   public    Boolean  @default(true)
   tags      Json?
   user      User     @relation(fields: [userId], references: [id])
