@@ -189,6 +189,8 @@ export default function VisualsClient() {
           topic,
           forceRegenerate: true,
           editPrompt: promptOverride ?? currentEditText,
+          allTopics,
+          relatedTopics: [],
         }),
       });
       const data = await res.json();

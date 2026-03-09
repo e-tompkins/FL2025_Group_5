@@ -16,6 +16,167 @@ type GenPayload = {
   js: string;
 };
 
+// -----------------------------------------------------------
+// Helpers
+// -----------------------------------------------------------
+
+function normalizeTopic(raw: string | null | undefined): string {
+  if (!raw) return "";
+  let t = decodeURIComponent(raw).trim();
+  if (
+    (t.startsWith('"') && t.endsWith('"')) ||
+    (t.startsWith("'") && t.endsWith("'"))
+  ) {
+    t = t.slice(1, -1).trim();
+  }
+  return t;
+}
+
+const stripScripts = (s: string) =>
+  (s || "").replace(/<script[^>]*>/gi, "").replace(/<\/script>/gi, "");
+
+function clean(s: string) {
+  return stripScripts(s || "");
+}
+
+/**
+ * Minimal, white card that ONLY shows a Restart button and the Mermaid diagram.
+ * (No inner title or description — those stay in the page chrome.)
+ */
+function mermaidCardHTML(diagramCode: string) {
+  const code =
+    diagramCode.trim().startsWith("<pre") && diagramCode.includes("mermaid")
+      ? diagramCode.trim()
+      : `<pre class="mermaid">\n${diagramCode.trim()}\n</pre>`;
+
+  return `
+<div id="viz-card" style="max-width:1000px;margin:0 auto;">
+  <div style="display:flex;justify-content:flex-end;margin:6px 0 10px;">
+    <button id="restart" style="border:1px solid #e5e7eb;background:#ffffff;border-radius:12px;padding:8px 12px;font-weight:600;cursor:pointer">
+      Restart
+    </button>
+  </div>
+
+  <div style="background:#ffffff;border:1px solid #e5e7eb;border-radius:16px;overflow:auto;padding:12px;min-height:240px">
+    ${code}
+  </div>
+</div>
+
+<!-- Mermaid -->
+<script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+<script>
+  mermaid.initialize({
+    startOnLoad: false,
+    theme: "neutral",
+    securityLevel: "loose",
+    themeVariables: {
+      background: "#ffffff",
+      primaryTextColor: "#0b0f19",
+      lineColor: "#94a3b8"
+    }
+  });
+
+  async function runAll(){
+    try {
+      await new Promise(r => setTimeout(r, 0));
+      await mermaid.run({ querySelector: ".mermaid" });
+    } catch(e) {
+      console.error("Mermaid render error:", e);
+    }
+  }
+
+  runAll();
+
+  const btn = document.getElementById("restart");
+  if (btn) {
+    btn.addEventListener("click", async () => {
+      document.querySelectorAll(".mermaid").forEach(n => n.removeAttribute("data-processed"));
+      await runAll();
+      btn.focus();
+    });
+  }
+</script>
+`.trim();
+}
+
+// -----------------------------------------------------------
+// Hardcoded Mermaid visuals
+// -----------------------------------------------------------
+
+const HARD: Record<
+  string,
+  { rationale: string; html: string; css: string; js: string }
+> = {
+  "depth first search": {
+    rationale:
+      "Depth-first search explores one path as far as possible, then backtracks.",
+    html: mermaidCardHTML(`
+graph TD
+  A[Start at node] --> B{Visited?}
+  B -- "Yes" --> C[Backtrack]
+  B -- "No" --> D[Mark visited]
+  D --> E[Pick next neighbor]
+  E --> F{Neighbor exists?}
+  F -- "Yes" --> A
+  F -- "No" --> C
+    `),
+    css: "",
+    js: "",
+  },
+  "earth's core": {
+    rationale:
+      "Earth is layered concentrically: crust (thin), mantle (thick), liquid outer core, solid inner core.",
+    html: mermaidCardHTML(`
+mindmap
+  root((Earth))
+    Crust["Crust (5–70 km)"]
+      Oceanic["Oceanic (thin)"]
+      Continental["Continental (thicker)"]
+    Mantle["Mantle (~2,900 km)"]
+      Upper["Upper mantle"]
+      Lower["Lower mantle"]
+    OuterCore["Outer core (liquid iron)"]
+    InnerCore["Inner core (solid iron)"]
+    `),
+    css: "",
+    js: "",
+  },
+  "maslow's hierarchy of needs": {
+    rationale:
+      "Maslow’s theory stacks needs from basic to growth; lower levels support higher motivations.",
+    html: mermaidCardHTML(`
+flowchart TB
+  E[Physiological] --> D[Safety] --> C[Love / Belonging] --> B[Esteem] --> A[Self-Actualization]
+  A --> T[Self-Transcendence]
+  classDef base fill:#eef2ff,stroke:#1e3a8a,color:#0b0f19;
+  classDef mid fill:#e0f2fe,stroke:#0369a1,color:#0b0f19;
+  classDef high fill:#dcfce7,stroke:#166534,color:#0b0f19;
+  class E,D base
+  class C,B mid
+  class A,T high
+    `),
+    css: "",
+    js: "",
+  },
+  "angular momentum": {
+    rationale: "Angular momentum grows with moment of inertia and angular velocity.",
+    html: mermaidCardHTML(`
+flowchart LR
+  Torque -->|causes| Angular_Momentum
+  Angular_Momentum --> Inertia
+  Angular_Momentum --> Angular_Velocity
+  Inertia --> Mass
+  Inertia --> Radius
+    `),
+    css: "",
+    js: "",
+  },
+};
+
+function getHardcoded(topic: string) {
+  return HARD[topic.toLowerCase().trim()] ?? null;
+}
+
 // ----------------------------- GET -----------------------------
 export async function GET(req: NextRequest) {
   const session = await getServerSession(authOption);
@@ -27,7 +188,8 @@ export async function GET(req: NextRequest) {
 
   try {
     const url = new URL(req.url);
-    const topic = url.searchParams.get("topic") ?? "";
+    const rawTopic = url.searchParams.get("topic");
+    const topic = normalizeTopic(rawTopic);
     const tagParam = url.searchParams.get("tag");
     const mine = url.searchParams.get("mine") === "true"; // for /my-visuals
 
@@ -57,6 +219,8 @@ export async function GET(req: NextRequest) {
           tags: true,
           userPrompt: true,
           updatedAt: true,
+          rationale: true,
+          modelUsed: true,
         },
       });
       if (!v) return NextResponse.json({ error: "Not found" }, { status: 404 });
@@ -78,6 +242,8 @@ export async function GET(req: NextRequest) {
           tags: true,
           userPrompt: true,
           updatedAt: true,
+          rationale: true,
+          modelUsed: true,
         },
       });
       return NextResponse.json({ items: myVisuals });
@@ -100,6 +266,8 @@ export async function GET(req: NextRequest) {
           tags: true,
           public: true,
           updatedAt: true,
+          rationale: true,
+          modelUsed: true,
         },
       });
       return NextResponse.json({ items: visualsByTag });
@@ -118,6 +286,8 @@ export async function GET(req: NextRequest) {
         tags: true,
         public: true,
         updatedAt: true,
+        rationale: true,
+        modelUsed: true,
       },
     });
 
@@ -139,13 +309,15 @@ export async function PATCH(req: NextRequest) {
   const email = session.user.email;
 
   try {
-    const { id, topic, public: isPublic } = await req.json();
+    const { id, topic: rawTopic, public: isPublic } = await req.json();
     if (typeof isPublic !== "boolean") {
       return NextResponse.json(
         { error: "Provide { id|topic, public:boolean }" },
         { status: 400 }
       );
     }
+
+    const topic = rawTopic ? normalizeTopic(rawTopic) : undefined;
 
     const user = await prisma.user.findUnique({
       where: { email },
@@ -194,7 +366,7 @@ export async function PATCH(req: NextRequest) {
   }
 }
 
-// ----------------------------- POST -----------------------------
+// ----------------------------- POST (Mermaid-based visuals, V1-compatible API) -----------------------------
 export async function POST(req: NextRequest) {
   const session = await getServerSession(authOption);
   if (!session?.user?.email) {
@@ -204,19 +376,20 @@ export async function POST(req: NextRequest) {
 
   try {
     const {
-      topic,
-      forceRegenerate,
+      topic: rawTopic,
+      forceRegenerate = false,
       editPrompt = "",
       relatedTopics = [],
       allTopics = [],
       tags = [],
     } = await req.json();
 
+    const topic = normalizeTopic(rawTopic);
     if (!topic || typeof topic !== "string" || topic.trim().length < 2) {
       return NextResponse.json({ error: "Invalid topic" }, { status: 400 });
     }
 
-    // Create/read user ID (race-safe)
+    // Create/read user ID (race-safe, from V1)
     let userId: string;
     try {
       const u = await prisma.user.upsert({
@@ -235,11 +408,20 @@ export async function POST(req: NextRequest) {
       userId = u.id;
     }
 
+    // V1-style cache: if we already have a visual for this user/topic, return it
     if (!forceRegenerate) {
       const existing = await prisma.visual.findFirst({
         where: { userId, topic },
         orderBy: { createdAt: "desc" },
-        select: { html: true, css: true, js: true, userPrompt: true },
+        select: {
+          id: true,
+          html: true,
+          css: true,
+          js: true,
+          userPrompt: true,
+          public: true,
+          tags: true,
+        },
       });
       if (existing) {
         return NextResponse.json({
@@ -249,85 +431,14 @@ export async function POST(req: NextRequest) {
           js: existing.js,
           cached: true,
           userPrompt: existing.userPrompt ?? "",
+          public: existing.public ?? true,
+          tags: existing.tags ?? [],
+          id: existing.id,
         });
       }
     }
 
-    // Prompt (general, no topic hints, but requires rationale)
-    const systemPrompt = `
-You output compact, production-ready anime.js visuals as strict JSON.
-
-RETURN ONLY JSON (no prose, no backticks):
-{
-  "rationale": "1–2 lines explaining the visual",
-  "html": "<div id=\\"viz\\"><svg id=\\"chart\\" viewBox=\\"0 0 800 400\\" role=\\"img\\" aria-label=\\"...\\"/></div>",
-  "css": "/* optional, small */",
-  "js": "// uses global 'anime'; targets #viz / #chart"
-}
-
-HARD REQUIREMENTS
-- HTML MUST start with EXACTLY this container (do not remove or rename IDs):
-  <div id="viz"><svg id="chart" viewBox="0 0 800 400" ...></svg></div>
-- Keep SVG only (no canvas/img/iframe/external fonts).
-- No network calls/imports/eval. Anime.js is already on window as 'anime'.
-- ≤ ~150 lines total. Stage animation: axes → labels → objects → highlight.
-`.trim();
-
-    var userPrompt;
-    if (editPrompt.length == 0) {
-      userPrompt = `
-        TOPIC
-        ${topic}
-
-        AUDIENCE
-        - Visual learner; needs a correct, minimal diagram.
-
-        REQUIREMENTS
-        - Choose an appropriate minimal visual form (function plot, comparison, process-flow, network, etc.).
-        - Provide short labels and only essential motion.
-
-        OUTPUT
-        - Return ONLY JSON with { rationale, html, css, js }.
-        `.trim();
-    } else {
-      userPrompt = editPrompt;
-    }
-
-    const completion = await client.chat.completions.create({
-      model: "gpt-4o-mini",
-      temperature: 0.0,
-      messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-    });
-
-    const raw = completion.choices[0]?.message?.content ?? "";
-    let payload: (GenPayload & { rationale?: string }) | null = null;
-    try {
-      payload = JSON.parse(raw);
-    } catch {
-      const m = raw.match(/\{[\s\S]*\}/);
-      if (m) payload = JSON.parse(m[0]) as GenPayload & { rationale?: string };
-    }
-
-    if (!payload?.html || !payload?.js) {
-      return NextResponse.json(
-        { error: "Model returned invalid code" },
-        { status: 502 }
-      );
-    }
-
-    const stripScripts = (s: string) =>
-      s.replace(/<script[^>]*>/gi, "").replace(/<\/script>/gi, "");
-    const clean = {
-      rationale: (payload.rationale ?? "").trim(),
-      html: payload.html,
-      css: payload.css ? stripScripts(payload.css) : "",
-      js: payload.js,
-    };
-
-    // build deduped tags array: include topic + provided/related/all topics
+    // Build deduped tags array: include topic + provided/related/all topics
     const providedTags = Array.isArray(tags) ? tags : [];
     const related = Array.isArray(relatedTopics) ? relatedTopics : [];
     const all = Array.isArray(allTopics) ? allTopics : [];
@@ -336,26 +447,145 @@ HARD REQUIREMENTS
     );
     const tagsArray = Array.from(tagsSet);
 
+    // Hardcoded Mermaid diagrams
+    const hard = getHardcoded(topic);
+    if (hard && !forceRegenerate) {
+      const saved = await prisma.visual.upsert({
+        where: { userId_topic: { userId, topic } } as any,
+        update: {
+          html: hard.html,
+          css: hard.css || null,
+          js: hard.js,
+          modelUsed: "mermaid-hardcoded",
+          rationale: hard.rationale || null,
+          userPrompt: null,
+          public: true,
+          tags: tagsArray,
+        },
+        create: {
+          topic,
+          html: hard.html,
+          css: hard.css || null,
+          js: hard.js,
+          modelUsed: "mermaid-hardcoded",
+          user: { connect: { id: userId } },
+          rationale: hard.rationale || null,
+          userPrompt: null,
+          public: true,
+          tags: tagsArray,
+        },
+        select: {
+          id: true,
+          html: true,
+          css: true,
+          js: true,
+          public: true,
+          tags: true,
+          userPrompt: true,
+        },
+      });
+
+      return NextResponse.json({
+        topic,
+        html: saved.html,
+        css: saved.css ?? "",
+        js: saved.js,
+        public: saved.public,
+        cached: false,
+        userPrompt: saved.userPrompt ?? "",
+        tags: saved.tags ?? [],
+        id: saved.id,
+      });
+    }
+
+    // LLM: Mermaid-only visual content, wrapped in our card HTML
+    const systemPrompt = `
+You output ONLY Mermaid diagram code (no backticks, no HTML tags) and a short "rationale".
+Respond as strict JSON:
+{
+  "rationale": "short explanation",
+  "html": "MERMAID_CODE",
+  "css": "",
+  "js": ""
+}
+
+Example html field:
+graph TD
+  A --> B
+`.trim();
+
+    let userPrompt: string;
+    if (editPrompt && editPrompt.trim().length > 0) {
+      userPrompt = editPrompt;
+    } else {
+      userPrompt = `
+Create a clear, beginner-friendly Mermaid diagram for the concept:
+"${topic}"
+
+Guidelines:
+- Prefer flowchart / sequence / mindmap depending on what best fits the concept.
+- Keep labels concise and readable.
+- Focus on conceptual clarity for visual learners.
+`.trim();
+    }
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      temperature: 0,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    });
+
+    const content = completion?.choices?.[0]?.message?.content ?? "";
+    if (!content) {
+      return NextResponse.json(
+        { error: "Model returned empty response" },
+        { status: 502 }
+      );
+    }
+
+    let payload: GenPayload | null = null;
+    try {
+      payload = JSON.parse(content) as GenPayload;
+    } catch {
+      return NextResponse.json(
+        { error: "LLM returned invalid JSON", raw: content.slice(0, 1000) },
+        { status: 502 }
+      );
+    }
+
+    if (!payload?.html) {
+      return NextResponse.json(
+        { error: "Model returned invalid code" },
+        { status: 502 }
+      );
+    }
+
+    const cardHTML = mermaidCardHTML(payload.html.trim());
+
     const saved = await prisma.visual.upsert({
       where: { userId_topic: { userId, topic } } as any,
       update: {
-        html: clean.html,
-        css: clean.css || null,
-        js: clean.js,
-        modelUsed: "gpt-4o-mini",
-        rationale: clean.rationale || null,
+        html: cardHTML,
+        css: clean(payload.css || ""),
+        js: clean(payload.js || ""),
+        modelUsed: "mermaid-llm",
+        rationale: (payload.rationale ?? "").trim() || null,
         userPrompt: userPrompt || null,
         public: true,
         tags: tagsArray,
       },
       create: {
         topic,
-        html: clean.html,
-        css: clean.css || null,
-        js: clean.js,
-        modelUsed: "gpt-4o-mini",
+        html: cardHTML,
+        css: clean(payload.css || "") || null,
+        js: clean(payload.js || ""),
+        modelUsed: "mermaid-llm",
         user: { connect: { id: userId } },
-        rationale: clean.rationale || null,
+        rationale: (payload.rationale ?? "").trim() || null,
         userPrompt: userPrompt || null,
         public: true,
         tags: tagsArray,

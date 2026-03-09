@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  provider = "postgresql"
   url      = env("DATABASE_URL")
 }
 
@@ -22,13 +22,13 @@ model Visual {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   topic     String
-  html      String   @db.MediumText
-  css       String?  @db.MediumText
-  js        String   @db.LongText
+  html      String   @db.Text
+  css       String?  @db.Text
+  js        String   @db.Text
   modelUsed String?
   userId    String
-  rationale String?  @db.MediumText
-  userPrompt String?  @db.MediumText
+  rationale String?  @db.Text
+  userPrompt String?  @db.Text
   public    Boolean  @default(true)
   tags      Json?
   user      User     @relation(fields: [userId], references: [id])
